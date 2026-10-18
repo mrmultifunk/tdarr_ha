@@ -1,114 +1,157 @@
-import logging
-import time
+"""Tdarr node, server and library controls."""
 
+from requests.exceptions import RequestException
 from homeassistant.components.switch import SwitchEntity
+from homeassistant.exceptions import HomeAssistantError
 
 from . import TdarrEntity
 from .const import DOMAIN, COORDINATOR, SWITCHES
+from .discovery import register_entities
 
-_LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Add the Switch from the config."""
-    entry = hass.data[DOMAIN][config_entry.entry_id][COORDINATOR]
-    switches = []
-    for key, value in entry.data["nodes"].items():
-        sw = Switch(entry, value, value["_id"], config_entry.options)
-        switches.append(sw)
+    coordinator = hass.data[DOMAIN][config_entry.entry_id][COORDINATOR]
 
-    for key, value in SWITCHES.items():
-        _LOGGER.debug(value)
-        switches.append(Switch(entry, entry.data["globalsettings"], value["name"], config_entry.options))
+    def entities():
+        for node in coordinator.data["nodes"].values():
+            yield Switch(coordinator, node, node["_id"], config_entry.entry_id)
+        for key in SWITCHES:
+            yield Switch(coordinator, {}, key, config_entry.entry_id)
+        for library in coordinator.data["libraries"]:
+            if library.get("_id"):
+                yield ProcessLibrarySwitch(coordinator, config_entry.entry_id, library)
 
-    async_add_entities(switches, False)
+    register_entities(hass, config_entry, coordinator, async_add_entities, entities, "switch")
+
 
 class Switch(TdarrEntity, SwitchEntity):
-    """Define the Switch for turning ignition off/on"""
+    """Pause a node or control a server-wide switch."""
 
-    def __init__(self, coordinator, switch, name, options):
-        _LOGGER.debug(name)
-        if "nodeName" in switch:
-            self._device_id = "tdarr_node_" + switch["nodeName"] + "_paused"
-        elif name == "pauseAll":
-            self._device_id = "tdarr_pause_all"
-        elif name == "ignoreSchedules":
-            self._device_id = "tdarr_ignore_schedules"
+    def __init__(self, coordinator, node, key, entry_id):
+        self.object_name = key
+        self._node_id = node.get("_id")
+        self._node_name = node.get("nodeName", self._node_id)
+        if key == "pauseAll":
+            device_id = "tdarr_pause_all"
+        elif key == "ignoreSchedules":
+            device_id = "tdarr_ignore_schedules"
         else:
-            self._device_id = "tdarr_node_" + switch["_id"] + "_paused"
-        self.switch = switch
-        self.coordinator = coordinator
-        self._state = None
-        self.object_name = name
-        # Required for HA 2022.7
-        self.coordinator_context = object()
-
-    async def async_turn_on(self, **kwargs):
-        update = await self.coordinator.hass.async_add_executor_job(
-            self.coordinator.tdarr.pauseNode,
-            self.object_name,
-            True
+            device_id = f"{entry_id}_node_{self._node_id}_paused"
+        self.legacy_unique_id = (
+            f"{coordinator.serverip}-tdarr_node_{self._node_name}_paused"
+            if self._node_id else None
         )
+        super().__init__(coordinator=coordinator, device_id=device_id, name=device_id)
 
-        if update == "OK":
-            self._state = True
-            self.switch["nodePaused"] = True
-            self.async_write_ha_state()
-
-
-
-           
-    async def async_turn_off(self, **kwargs):
-        update = await self.coordinator.hass.async_add_executor_job(
-            self.coordinator.tdarr.pauseNode,
-            self.object_name,
-            False
-        )
-
-        if update == "OK":
-            self._state = False
-            self.switch["nodePaused"] = False
-            self.async_write_ha_state()
-
+    @property
+    def node(self):
+        return next((n for n in self.coordinator.data["nodes"].values()
+                     if n.get("_id") == self._node_id), None)
 
     @property
     def name(self):
-        #_LOGGER.debug(self.switch)
-        if "nodeName" in self.switch:
-            return "tdarr_node_" + self.switch["nodeName"] + "_paused"
-        elif self.object_name == "pauseAll":
-            return "tdarr_pause_all"
-        elif self.object_name == "ignoreSchedules": 
-            return "tdarr_ignore_schedules"
-        else:
-            return "tdarr_node_" + self.switch["_id"] + "_paused"
-
+        if self._node_id:
+            node = self.node or {}
+            return f"tdarr_node_{node.get('nodeName', self._node_name)}_paused"
+        return self._device_id
 
     @property
-    def device_id(self):
-        return self.device_id
+    def available(self):
+        return super().available and (self._node_id is None or self.node is not None)
 
     @property
     def is_on(self):
-        if self._state == True:
-            self._state = None
-            return True
-        elif self._state == False:
-            self._state = None
-            return False
-        if  self.object_name == "pauseAll":
-            return self.coordinator.data["globalsettings"]["pauseAllNodes"]
-        elif self.object_name == "ignoreSchedules":
-            return self.coordinator.data["globalsettings"]["ignoreSchedules"]
-        for key, value in self.coordinator.data["nodes"].items():
-            if value["_id"] == self.switch["_id"]:
-                return value["nodePaused"]
-
-
+        if self.object_name in SWITCHES:
+            field = "pauseAllNodes" if self.object_name == "pauseAll" else "ignoreSchedules"
+            return self.coordinator.data["globalsettings"].get(field)
+        node = self.node
+        return node.get("nodePaused") if node else None
 
     @property
     def icon(self):
-        return SWITCHES.get(self.object_name, {}).get("icon", None)
+        return SWITCHES.get(self.object_name, {}).get("icon", "mdi:pause-circle")
+
+    async def _set_state(self, enabled):
+        if not self.available:
+            raise HomeAssistantError("Tdarr node or server is unavailable")
+        try:
+            result = await self.hass.async_add_executor_job(
+                self.coordinator.tdarr.pauseNode, self.object_name, enabled
+            )
+            if result != "OK":
+                raise HomeAssistantError("Tdarr rejected the switch command")
+        except RequestException as err:
+            raise HomeAssistantError("Could not update the Tdarr switch") from err
+        # Confirmed writes update cached state immediately, then poll for truth.
+        if self._node_id:
+            node = self.node
+            if node is not None:
+                node["nodePaused"] = enabled
+        else:
+            field = "pauseAllNodes" if self.object_name == "pauseAll" else "ignoreSchedules"
+            self.coordinator.data["globalsettings"][field] = enabled
+        self.async_write_ha_state()
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_on(self, **kwargs):
+        await self._set_state(True)
+
+    async def async_turn_off(self, **kwargs):
+        await self._set_state(False)
+
+
+class ProcessLibrarySwitch(TdarrEntity, SwitchEntity):
+    """Enable or disable processing for one library, not the whole node."""
+
+    _attr_icon = "mdi:folder-play"
+
+    def __init__(self, coordinator, entry_id, library):
+        self._library_id = library["_id"]
+        self._library_name = library["name"]
+        super().__init__(
+            coordinator=coordinator,
+            device_id=f"{entry_id}_library_{self._library_id}_process",
+            name=f"Tdarr {self._library_name} Process Library",
+        )
 
     @property
-    def extra_state_attributes(self):
-        return None
+    def library(self):
+        return next((lib for lib in self.coordinator.data["libraries"]
+                     if lib.get("_id") == self._library_id), None)
+
+    @property
+    def name(self):
+        library = self.library or {}
+        return f"Tdarr {library.get('name', self._library_name)} Process Library"
+
+    @property
+    def available(self):
+        library = self.library
+        return (super().available and library is not None
+                and isinstance(library.get("processLibrary"), bool))
+
+    @property
+    def is_on(self):
+        library = self.library
+        return library.get("processLibrary") if library else None
+
+    async def _set_state(self, enabled):
+        if not self.available:
+            raise HomeAssistantError("Tdarr library processing state is unavailable")
+        try:
+            await self.hass.async_add_executor_job(
+                self.coordinator.tdarr.setProcessLibrary, self._library_id, enabled
+            )
+        except (RequestException, ValueError) as err:
+            raise HomeAssistantError("Could not change Tdarr library processing") from err
+        library = self.library
+        if library is not None:
+            library["processLibrary"] = enabled
+        self.async_write_ha_state()
+        await self.coordinator.async_request_refresh()
+
+    async def async_turn_on(self, **kwargs):
+        await self._set_state(True)
+
+    async def async_turn_off(self, **kwargs):
+        await self._set_state(False)

@@ -4,7 +4,7 @@ import logging
 import voluptuous as vol
 from homeassistant import config_entries, core, exceptions
 from homeassistant.core import callback
-from requests.exceptions import ConnectionError
+from requests.exceptions import ConnectionError, RequestException
 
 from .const import (
     DOMAIN,
@@ -32,7 +32,7 @@ async def validate_input(hass: core.HomeAssistant, data):
     Data has the keys from DATA_SCHEMA with values provided by the user.
     """
     
-    tdarr = Server(data[SERVERIP], data[SERVERPORT], data[APIKEY])
+    tdarr = Server(data[SERVERIP], data[SERVERPORT], data.get(APIKEY, ""))
 
     result = await hass.async_add_executor_job(tdarr.getSettings)
     if result.get("status", "") == "ERROR":
@@ -52,7 +52,7 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Tdarr Controller."""
 
     VERSION = 1
-    CONNECTION_CLASS = config_entries.CONN_CLASS_CLOUD_POLL
+    CONNECTION_CLASS = config_entries.CONN_CLASS_LOCAL_POLL
 
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
@@ -61,14 +61,14 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 info = await validate_input(self.hass, user_input)
                 return self.async_create_entry(title=info["title"], data=user_input)
-            except ConnectionError:
+            except RequestException:
                 errors["base"] = "cannot_connect"
             except InvalidAPIKEY:
                 errors["base"] = "invalid_apikey"
             except AuthRequired:
                 errors["base"] = "auth_required"
             except Exception as ex:  # pylint: disable=broad-except
-                _LOGGER.exception(ex)
+                _LOGGER.error("Tdarr setup failed (%s)", type(ex).__name__)
                 errors["base"] = "unknown"
 
         return self.async_show_form(
@@ -79,36 +79,27 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(config_entry):
         """Get the options flow for this handler."""
-        return OptionsFlow(config_entry)
+        return OptionsFlow()
 
 class OptionsFlow(config_entries.OptionsFlow):
-    def __init__(self, config_entry: config_entries.ConfigEntry):
-        """Initialize options flow."""
-        self.config_entry = config_entry
-
     async def async_step_init(self, user_input=None):
         if user_input is not None:
-            if SERVERIP in self.config_entry.data:
-                user_input[SERVERIP] = self.config_entry.data[SERVERIP]
-            if SERVERPORT in self.config_entry.data:
-                user_input[SERVERPORT] = self.config_entry.data[SERVERPORT]
-            if APIKEY in user_input:
-                user_input[APIKEY] = user_input[APIKEY].strip()
-            _LOGGER.debug(user_input)
-            self.hass.config_entries.async_update_entry(
-                self.config_entry, data=user_input, options=self.config_entry.options
-            )
-            return self.async_create_entry(title="", data={})
+            options = dict(self.config_entry.options)
+            options[UPDATE_INTERVAL] = user_input[UPDATE_INTERVAL]
+            options[APIKEY] = user_input.get(
+                APIKEY, self.config_entry.options.get(APIKEY, self.config_entry.data.get(APIKEY, ""))
+            ).strip()
+            return self.async_create_entry(title="", data=options)
         options = {
             vol.Optional(
                 UPDATE_INTERVAL,
                 default=self.config_entry.options.get(
-                    UPDATE_INTERVAL, UPDATE_INTERVAL_DEFAULT
+                    UPDATE_INTERVAL, self.config_entry.data.get(UPDATE_INTERVAL, UPDATE_INTERVAL_DEFAULT)
                 ),
-            ): int,
+            ): vol.All(vol.Coerce(int), vol.Range(min=5)),
             vol.Optional(
                 APIKEY,
-                default=self.config_entry.data.get(APIKEY, "")
+                default=self.config_entry.options.get(APIKEY, self.config_entry.data.get(APIKEY, ""))
             ): str,
         }
 

@@ -14,20 +14,20 @@ class Server(object):
         }
         
     def getNodes(self):
-        r = requests.get(self.baseurl + 'get-nodes', headers=self.headers)
+        r = requests.get(self.baseurl + 'get-nodes', headers=self.headers, timeout=30)
         if r.status_code == 200:
             result = r.json()
             return result
         else:
-            return "ERROR"
+            r.raise_for_status()
 
     def getStatus(self):
-        r = requests.get(self.baseurl + 'status', headers=self.headers)
+        r = requests.get(self.baseurl + 'status', headers=self.headers, timeout=30)
         if r.status_code == 200:
             result = r.json()
             return result
         else:
-            return "ERROR"
+            r.raise_for_status()
     
     def getLibraries(self):
         libraries = []
@@ -39,6 +39,7 @@ class Server(object):
             library2["name"] = lib["name"]
             library2["_id"] = lib["_id"]
             library2["folder"] = lib.get("folder", "")
+            library2["processLibrary"] = lib.get("processLibrary")
             libraries.append(library2)
 
 
@@ -54,11 +55,11 @@ class Server(object):
                 },
             "timeout":1000
         }
-        r = requests.post(self.baseurl + 'cruddb', json = post, headers=self.headers)
+        r = requests.post(self.baseurl + 'cruddb', json = post, headers=self.headers, timeout=30)
         if r.status_code == 200:
             return r.json()
         else:
-            return "ERROR"
+            r.raise_for_status()
     
     def getLibraryStats(self):
         post = {
@@ -68,22 +69,22 @@ class Server(object):
                 },
             "timeout":20000
         }
-        r = requests.post(self.baseurl + 'cruddb', json = post, headers=self.headers)
+        r = requests.post(self.baseurl + 'cruddb', json = post, headers=self.headers, timeout=30)
         if r.status_code == 200:
             return r.json()
         else:
-            return
+            r.raise_for_status()
     def getPies(self, libraryID=""):
         post = {
             "data": {
                 "libraryId":libraryID
                 },
         }
-        r = requests.post(self.baseurl + 'stats/get-pies', json = post, headers=self.headers)
+        r = requests.post(self.baseurl + 'stats/get-pies', json = post, headers=self.headers, timeout=30)
         if r.status_code == 200:
             return r.json()["pieStats"]
         else:
-            return "ERROR"
+            r.raise_for_status()
         
     def getStaged(self):
         post = {
@@ -96,11 +97,11 @@ class Server(object):
                 },
             "timeout":1000
         }
-        r = requests.post(self.baseurl + 'client/staged', json = post, headers=self.headers)
+        r = requests.post(self.baseurl + 'client/staged', json = post, headers=self.headers, timeout=30)
         if r.status_code == 200:
             return r.json()
         else:
-            return "ERROR"
+            r.raise_for_status()
         
     def getSettings(self):  
         post = {
@@ -112,7 +113,7 @@ class Server(object):
                 },
             "timeout":1000
         }
-        r = requests.post(self.baseurl + 'cruddb', json = post, headers=self.headers)
+        r = requests.post(self.baseurl + 'cruddb', json = post, headers=self.headers, timeout=30)
         if r.status_code == 200:
             return r.json()
         else:
@@ -132,7 +133,7 @@ class Server(object):
                     },
                     "timeout":20000
                 }
-            r = requests.post(self.baseurl + 'cruddb', json=data, headers=self.headers)
+            r = requests.post(self.baseurl + 'cruddb', json=data, headers=self.headers, timeout=30)
         elif nodeID == "ignoreSchedules":
             data = {
                 "data":{
@@ -145,7 +146,7 @@ class Server(object):
                     },
                     "timeout":20000
                 }
-            r = requests.post(self.baseurl + 'cruddb', json=data, headers=self.headers)
+            r = requests.post(self.baseurl + 'cruddb', json=data, headers=self.headers, timeout=30)
         else:
             data = {
                 "data": {
@@ -155,11 +156,28 @@ class Server(object):
                     }
                 }
             }
-            r = requests.post(self.baseurl + 'update-node', json=data, headers=self.headers)
+            r = requests.post(self.baseurl + 'update-node', json=data, headers=self.headers, timeout=30)
         if r.status_code == 200:
             return "OK"
         else:
-            return "ERROR"
+            r.raise_for_status()
+
+    def setProcessLibrary(self, library_id, enabled):
+        """Update only the processing flag of the selected library."""
+        if not library_id or not isinstance(enabled, bool):
+            raise ValueError("Library ID and boolean state are required")
+        response = requests.post(
+            self.baseurl + "cruddb",
+            json={"data": {
+                "collection": "LibrarySettingsJSONDB",
+                "mode": "update",
+                "docID": library_id,
+                "obj": {"processLibrary": enabled},
+            }, "timeout": 20000},
+            headers=self.headers,
+            timeout=30,
+        )
+        response.raise_for_status()
 
     def scanLibrary(self, library_id, folderpath):
         """Find new files in one library using its exact ID and source folder."""
@@ -187,9 +205,10 @@ class Server(object):
 
         if mode == "":
             mode = "scanFindNew"
-        for lib in stats:
-            if libraryname in lib["name"]:
-                libid = lib["_id"]
+        matches = [lib for lib in stats if libraryname in (lib["name"], lib["_id"])]
+        if len(matches) != 1:
+            return {"ERROR": "Library name or ID must match exactly one library"}
+        libid = matches[0]["_id"]
 
         if libid is None:
             return {"ERROR": "Library Name not found"}
@@ -205,7 +224,7 @@ class Server(object):
             }
         }
 
-        r = requests.post(self.baseurl + "scan-files", json=data, headers=self.headers)
+        r = requests.post(self.baseurl + "scan-files", json=data, headers=self.headers, timeout=30)
 
         if r.status_code == 200:
             _LOGGER.debug(r.text)

@@ -9,39 +9,38 @@ from homeassistant.components.sensor import (
 
 from . import TdarrEntity
 from .const import DOMAIN, COORDINATOR, SENSORS
+from .discovery import register_entities
 
 _LOGGER = logging.getLogger(__name__)
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Add the Entities from the config."""
-    entry = hass.data[DOMAIN][config_entry.entry_id][COORDINATOR]
-    sensors = []
-    # Server Status Sensor
-    #_LOGGER.debug(entry.data)
-    for key, value in SENSORS.items():
-        if value.get("type", "") == "single":
-            sensors.append(TdarrSensor(entry, entry.data[value["entry"]], config_entry.options, key))
-    # Server Library Sensors
-    id = 0
-    for value in entry.data["libraries"]:
-        #value.insert(0, id)
-        sensors.append(TdarrSensor(entry, value, config_entry.options, "library"))
-        id += 1
-    # Server Node Sensors
-    fps_count = 0
-    for key, value in entry.data["nodes"].items():
-        sensors.append(TdarrSensor(entry, value, config_entry.options, "node"))
-        sensors.append(TdarrSensor(entry, value, config_entry.options, "nodefps"))
-    
+    """Discover nodes and libraries by ID without reloading the integration."""
+    coordinator = hass.data[DOMAIN][config_entry.entry_id][COORDINATOR]
 
-    async_add_entities(sensors, True)
+    def entities():
+        for key, value in SENSORS.items():
+            if value.get("type") == "single":
+                yield TdarrSensor(coordinator, coordinator.data[value["entry"]],
+                                  config_entry.options, key, config_entry.entry_id)
+        for library in coordinator.data["libraries"]:
+            yield TdarrSensor(coordinator, library, config_entry.options,
+                              "library", config_entry.entry_id)
+            if library.get("_id"):
+                for key in LIBRARY_STATS:
+                    yield LibraryStatistic(coordinator, config_entry.entry_id, library, key)
+        for node in coordinator.data["nodes"].values():
+            for key in ("node", "nodefps"):
+                yield TdarrSensor(coordinator, node, config_entry.options,
+                                  key, config_entry.entry_id)
+
+    register_entities(hass, config_entry, coordinator, async_add_entities, entities, "sensor")
 
 
 class TdarrSensor(
     TdarrEntity,
     SensorEntity,
 ):
-    def __init__(self, coordinator, sensor, options, type):
+    def __init__(self, coordinator, sensor, options, type, entry_id):
 
         self.sensor = sensor
         self.tdarroptions = options
@@ -64,8 +63,12 @@ class TdarrSensor(
             self._device_id = "tdarr_library_" + self.sensor["name"]
         else:
             self._device_id = "tdarr_" + self.type
-        # Required for HA 2022.7
-        self.coordinator_context = object()
+        self.legacy_unique_id = f"{coordinator.serverip}-{self._device_id}"
+        if type in ("node", "nodefps"):
+            self._device_id = f"{entry_id}_node_{sensor['_id']}_{type}"
+        elif type == "library" and sensor.get("_id"):
+            self._device_id = f"{entry_id}_library_{sensor['_id']}_files"
+        super().__init__(coordinator=coordinator, device_id=self._device_id, name=self.name)
 
 
     def get_value(self, ftype):
@@ -96,7 +99,7 @@ class TdarrSensor(
             elif self.type == "library":
                 libraries = self.coordinator.data.get("libraries",{})
                 for library in libraries:
-                    if library["name"] == self.sensor["name"]:
+                    if library.get("_id") == self.sensor.get("_id"):
                         _LOGGER.debug(library)
                         return library["totalFiles"]
 
@@ -117,7 +120,7 @@ class TdarrSensor(
             elif self.type == "library":
                 libraries = self.coordinator.data.get("libraries",{})
                 for library in libraries:
-                    if library["name"] == self.sensor["name"]:
+                    if library.get("_id") == self.sensor.get("_id"):
                         data = {}
                         data["Total Files"] = library["totalFiles"]
                         data["Number of Transcodes"] = library["totalTranscodeCount"]
@@ -145,23 +148,36 @@ class TdarrSensor(
             return "tdarr_server"
         elif self.type == "node":
             if "nodeName" in self.sensor:
-                return "tdarr_node_" + self.sensor.get("nodeName", "Unknown")
+                return "tdarr_node_" + self.coordinator.data["nodes"].get(self.sensor["_id"], self.sensor).get("nodeName", "Unknown")
             else:
                 return "tdarr_node_" + self.sensor.get("_id", "Unknown")
         elif self.type == "nodefps":
             if "nodeName" in self.sensor:
-                return "tdarr_node_" + self.sensor.get("nodeName", "Unknown") + "_fps"
+                return "tdarr_node_" + self.coordinator.data["nodes"].get(self.sensor["_id"], self.sensor).get("nodeName", "Unknown") + "_fps"
             else:
                 return "tdarr_node_" + self.sensor.get("_id", "Unknown") + "_fps"
         elif self.type == "library":
-            return "tdarr_library_" + self.sensor["name"]
+            library = next((lib for lib in self.coordinator.data["libraries"]
+                            if lib.get("_id") == self.sensor.get("_id")), self.sensor)
+            return "tdarr_library_" + library["name"]
         else:
             return "tdarr_" + self.type
 
 
     @property
+    def available(self):
+        if not super().available:
+            return False
+        if self.type in ("node", "nodefps"):
+            return self.sensor["_id"] in self.coordinator.data["nodes"]
+        if self.type == "library":
+            return any(lib.get("_id") == self.sensor.get("_id")
+                       for lib in self.coordinator.data["libraries"])
+        return True
+
+    @property
     def device_id(self):
-        return self.device_id
+        return self._device_id
     
     @property 
     def native_value(self):
@@ -187,3 +203,54 @@ class TdarrSensor(
     @property
     def state_class(self):
         return None
+
+# These are cumulative snapshots, not monotonically increasing meters: Tdarr
+# allows stats to be reset and space savings can be negative.
+LIBRARY_STATS = {
+    "sizeDiff": ("Space saved", "GB", "mdi:harddisk", SensorDeviceClass.DATA_SIZE),
+    "totalTranscodeCount": ("Transcodes", None, "mdi:video-check", None),
+    "totalHealthCheckCount": ("Health checks", None, "mdi:check-decagram", None),
+}
+
+
+class LibraryStatistic(TdarrEntity, SensorEntity):
+    """Expose existing library statistics as recorder-friendly numeric sensors."""
+
+    _attr_state_class = SensorStateClass.MEASUREMENT
+
+    def __init__(self, coordinator, entry_id, library, key):
+        self._library_id = library["_id"]
+        self._library_name = library["name"]
+        self._key = key
+        label, unit, icon, device_class = LIBRARY_STATS[key]
+        self._label = label
+        self._attr_native_unit_of_measurement = unit
+        self._attr_icon = icon
+        self._attr_device_class = device_class
+        super().__init__(
+            coordinator=coordinator,
+            device_id=f"{entry_id}_library_{self._library_id}_{key}",
+            name=f"Tdarr {self._library_name} {label}",
+        )
+
+    @property
+    def library(self):
+        return next((lib for lib in self.coordinator.data["libraries"]
+                     if lib.get("_id") == self._library_id), None)
+
+    @property
+    def name(self):
+        library = self.library or {}
+        return f"Tdarr {library.get('name', self._library_name)} {self._label}"
+
+    @property
+    def available(self):
+        return super().available and self.library is not None
+
+    @property
+    def native_value(self):
+        library = self.library or {}
+        value = library.get(self._key)
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            return None
+        return round(value, 2) if self._key == "sizeDiff" else value

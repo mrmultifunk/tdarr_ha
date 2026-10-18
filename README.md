@@ -3,7 +3,43 @@
 ## This fork
 
 Based on [itchannel/tdarr_ha](https://github.com/itchannel/tdarr_ha).
-Version 1.18.1 adds a **Scan for new files** button for each library.
+Version 1.19.0 adds **Process Library** switches and separate library statistics,
+alongside the **Scan for new files** buttons introduced in 1.18.1.
+
+### Library controls and statistics
+
+Each real library has:
+
+- **Scan for new files**: starts a Find new scan.
+- **Process Library**: enables/disables Tdarr processing for that library. This
+  changes Tdarr's `processLibrary` setting; it is not an immediate worker kill
+  or a pause of all nodes. It does not change the library's plugins or flows.
+- **Space saved** in GB, **Transcodes**, and **Health checks** numeric sensors.
+- The existing **file count** sensor and its detailed attributes.
+
+Statistics use the existing Tdarr responses, without extra polling calls.
+The new sensors support history/long-term statistics as numeric measurements.
+Missing values are shown as unknown, not fabricated zeroes. Savings may be
+negative and counters may reset when statistics are reset in Tdarr.
+
+New nodes and libraries are discovered on the next poll without reloading all
+servers. Removed ones become unavailable. Switches reflect changes made in the
+Tdarr UI on the next poll, and report failed commands in Home Assistant.
+
+### Upgrade notes for 1.19.0
+
+- Existing node and library entities migrate from name-based unique IDs to
+  stable IDs, preserving their Home Assistant entity IDs and customizations
+  when the old name identifies exactly one current entity. Do not rename nodes
+  or libraries at the same time as this upgrade. Already-renamed or ambiguous
+  legacy entries cannot be safely matched and are not guessed or deleted.
+- The polling interval is now saved correctly in options (minimum 5 seconds).
+  Values previously saved by the old flow in config data remain a fallback.
+- API keys are no longer logged by the options flow. Options are compatible
+  with Home Assistant's current read-only `config_entry` property.
+- All HTTP calls have transport timeouts; failed polling becomes unavailable.
+- The legacy `tdarr.refresh_library` action now requires an exact library name
+  or ID instead of matching a substring. Existing exact-name calls still work.
 
 Each button appears under the existing Tdarr server device and can be used in
 dashboards or with Home Assistant's `button.press` action. No helpers or manual
@@ -30,7 +66,7 @@ The existing sensors, switches, and `tdarr.refresh_library` action are retained.
 
 ### Development checks
 
-Run `python -m unittest discover -s tests -v` with `requests` installed.
+Run `python -m unittest discover -s tests -v` with `requests` and `voluptuous` installed.
 These isolated tests mock Home Assistant and HTTP; they do not replace a live
 test against your Home Assistant and Tdarr installations.
 

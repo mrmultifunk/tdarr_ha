@@ -3,7 +3,6 @@ import asyncio
 import logging
 from datetime import timedelta
 
-import async_timeout
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -43,15 +42,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Set up Tdarr Server from a config entry."""
     serverip = entry.data[SERVERIP]
     serverport= entry.data[SERVERPORT]
-    if APIKEY in entry.data:
-        apikey = entry.data[APIKEY]
-    else:
-        apikey = ""
-
-    if UPDATE_INTERVAL in entry.options:
-        update_interval = entry.options[UPDATE_INTERVAL]
-    else:
-        update_interval = UPDATE_INTERVAL_DEFAULT
+    apikey = entry.options.get(APIKEY, entry.data.get(APIKEY, ""))
+    update_interval = entry.options.get(
+        UPDATE_INTERVAL, entry.data.get(UPDATE_INTERVAL, UPDATE_INTERVAL_DEFAULT)
+    )
 
     #for ar in entry.data:
         #_LOGGER.debug(ar)
@@ -61,13 +55,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     await coordinator.async_refresh()  # Get initial data
        # Registers update listener to update config entry when options are updated.
     #_LOGGER.debug(coordinator.data)
-    tdarr_options_listener = entry.add_update_listener(options_update_listener) 
+    # Register the listener after the first successful refresh.
 
    
 
     if not coordinator.last_update_success:
         raise ConfigEntryNotReady
 
+    tdarr_options_listener = entry.add_update_listener(options_update_listener)
+    hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
         COORDINATOR : coordinator,
         "tdarr_options_listener": tdarr_options_listener
@@ -93,17 +89,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry):
     """Unload a config entry."""
-    unload_ok = all(
-        await asyncio.gather(
-            *[
-                hass.config_entries.async_forward_entry_unload(entry, component)
-                for component in PLATFORMS
-            ]
-        )
-    )
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     #_LOGGER.debug(hass.data[DOMAIN][entry.entry_id])
-    hass.data[DOMAIN][entry.entry_id]["tdarr_options_listener"]()
     if unload_ok:
+        hass.data[DOMAIN][entry.entry_id]["tdarr_options_listener"]()
         hass.data[DOMAIN].pop(entry.entry_id)
 
     return unload_ok
@@ -144,57 +133,38 @@ class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         """Fetch data from Tdarr Server."""
         try:
-            async with async_timeout.timeout(30):
-                data = {}
-                data["server"] = await self._hass.async_add_executor_job(
-                    self.tdarr.getStatus  # Fetch new status
-                )
+            data = {}
+            data["server"] = await self._hass.async_add_executor_job(
+                self.tdarr.getStatus  # Fetch new status
+            )
 
-                data["nodes"] = await self._hass.async_add_executor_job(
-                    self.tdarr.getNodes
-                )          
+            data["nodes"] = await self._hass.async_add_executor_job(
+                self.tdarr.getNodes
+            )
 
-                data["stats"] = await self._hass.async_add_executor_job(
-                    self.tdarr.getStats
-                )
+            data["stats"] = await self._hass.async_add_executor_job(
+                self.tdarr.getStats
+            )
 
-                data["staged"] = await self._hass.async_add_executor_job(
-                    self.tdarr.getStaged
-                )
+            data["staged"] = await self._hass.async_add_executor_job(
+                self.tdarr.getStaged
+            )
 
-                data["libraries"] = await self._hass.async_add_executor_job(
-                    self.tdarr.getLibraries
-                )
+            data["libraries"] = await self._hass.async_add_executor_job(
+                self.tdarr.getLibraries
+            )
 
-                data["globalsettings"] = await self._hass.async_add_executor_job(
-                    self.tdarr.getSettings
-                )
-                #_LOGGER.debug(self.data)
-                if self.data is not None:
-                    #_LOGGER.debug(self.data)
-                    oldnodes = len(self.data["nodes"])
-                    #_LOGGER.debug(len(self.data["nodes"]))
-                else:
-                    oldnodes = len(data["nodes"])
-                #_LOGGER.debug(len(self.data["nodes"])
-                if oldnodes != len(data["nodes"]):
-                    _LOGGER.debug("Node Change Detected config reload required")
-                    # Reload integration to pick up new/changed nodes
-                    current_entries = self._hass.config_entries.async_entries(DOMAIN)
-
-                
-                    if len(current_entries) > 0:
-                        for entry in current_entries:
-                            _LOGGER.debug("SHOWING ENTRY")
-                            self._hass.config_entries.async_schedule_reload(entry.entry_id)
-
-
-        
-
-                return data
+            data["globalsettings"] = await self._hass.async_add_executor_job(
+                self.tdarr.getSettings
+            )
+            for key in ("server", "nodes", "stats", "staged", "globalsettings"):
+                if not isinstance(data[key], dict) or data[key].get("status") == "ERROR":
+                    raise ValueError(f"Invalid Tdarr {key} response")
+            if not isinstance(data["libraries"], list):
+                raise ValueError("Invalid Tdarr libraries response")
+            return data
         except Exception as ex:
             self._available = False  # Mark as unavailable
-            _LOGGER.warning(str(ex))
             _LOGGER.warning("Error communicating with Tdarr for %s", self.serverip)
             raise UpdateFailed(
                 f"Error communicating with Tdarr for {self.serverip}"

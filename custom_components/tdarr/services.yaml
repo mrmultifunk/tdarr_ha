@@ -4,7 +4,7 @@ refresh_library:
   fields:
     library:
       name: Library
-      description: "Library Name to refresh"
+      description: "Exact library name or library ID to refresh"
       required: true
       example: "Movies"
       selector:
