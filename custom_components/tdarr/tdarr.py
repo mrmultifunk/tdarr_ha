@@ -37,6 +37,8 @@ class Server(object):
         for lib in self.getLibraryStats():
             library2 = self.getPies(lib["_id"])
             library2["name"] = lib["name"]
+            library2["_id"] = lib["_id"]
+            library2["folder"] = lib.get("folder", "")
             libraries.append(library2)
 
 
@@ -158,6 +160,25 @@ class Server(object):
             return "OK"
         else:
             return "ERROR"
+
+    def scanLibrary(self, library_id, folderpath):
+        """Find new files in one library using its exact ID and source folder."""
+        if not library_id or not isinstance(folderpath, str) or not folderpath.strip():
+            raise ValueError("Library ID and source folder are required")
+        data = {
+            "data": {
+                "scanConfig": {
+                    "dbID": library_id,
+                    "arrayOrPath": folderpath,
+                    "mode": "scanFindNew",
+                }
+            }
+        }
+        response = requests.post(
+            self.baseurl + "scan-files", json=data, headers=self.headers, timeout=30
+        )
+        response.raise_for_status()
+        # Tdarr returns plain text here; do not attempt JSON decoding.
 
     def refreshLibrary(self, libraryname, mode, folderpath):
         stats = self.getLibraryStats()

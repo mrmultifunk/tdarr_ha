@@ -4,12 +4,12 @@
     "codeowners": ["@itchannel"],
     "config_flow": true,
     "dependencies": [],
-    "documentation": "https://github.com/itchannel/tdarr_ha",
+    "documentation": "https://github.com/mrmultifunk/tdarr_ha",
     "homekit": {},
     "iot_class": "local_polling",
-    "issue_tracker": "https://github.com/itchannel/tdarr_ha/issues",
+    "issue_tracker": "https://github.com/mrmultifunk/tdarr_ha/issues",
     "requirements": [],
     "ssdp": [],
-    "version": "1.18",
+    "version": "1.18.1",
     "zeroconf": []
   }

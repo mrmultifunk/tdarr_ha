@@ -29,7 +29,7 @@ from .tdarr import Server
 
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
-PLATFORMS = ["sensor", "switch"]
+PLATFORMS = ["sensor", "switch", "button"]
 
 _LOGGER = logging.getLogger(__name__)
 
