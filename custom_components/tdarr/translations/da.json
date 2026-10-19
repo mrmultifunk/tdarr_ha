@@ -1,21 +1,21 @@
 {
   "config": {
     "abort": {
-      "already_configured": "Serveren er allerede konfigureret"
+      "already_configured": "Account is already configured"
     },
     "error": {
-      "cannot_connect": "Kunne ikke oprette forbindelse til Tdarr",
-      "invalid_auth": "Ugyldig godkendelse",
-      "invalid_apikey": "Ugyldig API-nøgle",
-      "auth_required": "Tdarr kræver en API-nøgle",
-      "unknown": "Uventet fejl. Se Home Assistants log."
+      "cannot_connect": "Failed to connect to Tdarr Server",
+      "invalid_auth": "Invalid authentication",
+      "invalid_apikey": "Invalid API Key",
+      "auth_required": "Tdarr server requires API Key as authentication is enabled!",
+      "unknown": "Unexpected error. Check the Home Assistant log."
     },
     "step": {
       "user": {
         "data": {
-          "serverip": "Serveradresse",
-          "serverport": "Port",
-          "apikey": "API-nøgle (valgfri)"
+          "serverip": "Tdarr Server IP",
+          "serverport": "Tdarr Server Port",
+          "apikey": "API key (optional)"
         }
       }
     }
@@ -24,99 +24,99 @@
     "step": {
       "init": {
         "data": {
-          "update_interval": "Opdateringsinterval (sekunder)",
-          "apikey": "API-nøgle (valgfri)",
-          "web_url": "Adresse til webinterface (valgfri)"
+          "update_interval": "Update interval (seconds)",
+          "apikey": "API key (optional)",
+          "web_url": "Web interface URL (optional)"
         },
-        "description": "Lad webadressen være tom for at bruge den konfigurerede serveradresse. Mindste opdateringsinterval er 5 sekunder."
+        "description": "Leave the web interface URL blank to use the configured server address. Minimum update interval: 5 seconds."
+      }
+    }
+  },
+  "services": {
+    "refresh_library": {
+      "name": "Library",
+      "description": "Rescan/Refresh Tdarr Library",
+      "fields": {
+        "library": {
+          "name": "Library",
+          "description": "Exact library name or ID"
+        },
+        "folderpath": {
+          "name": "Folder Path",
+          "description": "Library Folder path e.g. /Movies (Have to include this for now)"
+        },
+        "mode": {
+          "name": "Scan Mode",
+          "description": "Mode to scan (default find new files only)"
+        }
       }
     }
   },
   "entity": {
     "sensor": {
       "server": {
-        "name": "Serverstatus"
+        "name": "Server status"
       },
       "node": {
         "name": "Status"
       },
       "nodefps": {
-        "name": "Hastighed"
+        "name": "Speed"
       },
       "library": {
-        "name": "Filer"
+        "name": "Files"
       },
       "stats_spacesaved": {
-        "name": "Plads sparet"
+        "name": "Space saved"
       },
       "stats_transcodefilesremaining": {
-        "name": "Transkodningskø"
+        "name": "Transcode queue"
       },
       "stats_transcodedcount": {
-        "name": "Afsluttede transkodninger"
+        "name": "Transcodes completed"
       },
       "stats_stagedcount": {
-        "name": "Filer klar til behandling"
+        "name": "Staged files"
       },
       "stats_healthcount": {
-        "name": "Kø til integritetskontrol"
+        "name": "Health check queue"
       },
       "stats_transcodeerrorcount": {
-        "name": "Transkodningsfejl"
+        "name": "Transcode errors"
       },
       "stats_healtherrorcount": {
-        "name": "Fejl ved integritetskontrol"
+        "name": "Health check errors"
       },
       "stats_totalfps": {
-        "name": "Samlet hastighed"
+        "name": "Total speed"
       },
       "sizeDiff": {
-        "name": "Plads sparet"
+        "name": "Space saved"
       },
       "totalTranscodeCount": {
-        "name": "Transkodninger"
+        "name": "Transcodes"
       },
       "totalHealthCheckCount": {
-        "name": "Integritetskontroller"
+        "name": "Health checks"
       }
     },
     "switch": {
       "pauseAll": {
-        "name": "Sæt alle nodes på pause"
+        "name": "Pause all nodes"
       },
       "ignoreSchedules": {
-        "name": "Ignorér tidsplaner"
+        "name": "Ignore schedules"
       },
       "node_paused": {
-        "name": "Sæt behandling på pause"
+        "name": "Pause processing"
       },
       "process_library": {
-        "name": "Behandling aktiveret"
+        "name": "Processing enabled"
       }
     },
     "button": {
       "scan_new_files": {
-        "name": "Scan efter nye filer"
-      }
-    }
-  },
-  "services": {
-    "refresh_library": {
-      "name": "Scan bibliotek",
-      "description": "Start en scanning af et Tdarr-bibliotek",
-      "fields": {
-        "library": {
-          "name": "Bibliotek",
-          "description": "Bibliotekets præcise navn eller ID"
-        },
-        "folderpath": {
-          "name": "Mappesti",
-          "description": "Bibliotekets kildemappe, som den ses af Tdarr"
-        },
-        "mode": {
-          "name": "Scanningstype",
-          "description": "Find nye filer eller genopbyg bibliotekets database"
-        }
+        "name": "Scan for new files"
       }
     }
   }

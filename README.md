@@ -4,7 +4,14 @@
 
 Based on [itchannel/tdarr_ha](https://github.com/itchannel/tdarr_ha).
 
-### 1.20.0: clearer devices and translated controls
+### 1.20.1: English interface
+
+Integration-provided names, settings and messages are now English, including
+when Home Assistant uses Danish. The Danish locale intentionally uses the same
+English text to keep the interface consistent. User-assigned names and library
+or node names from Tdarr are preserved, as are all entity IDs.
+
+### 1.20.0: clearer devices and controls
 
 The integration now groups existing entities into separate devices:
 
@@ -14,9 +21,8 @@ The integration now groups existing entities into separate devices:
 | Tdarr · node name | Pause, speed and diagnostic status |
 | Tdarr · library name | Scan, processing, file count and library statistics |
 
-Controls have short English/Danish names using Home Assistant's entity
-translations. The installation's configured language selects the default names;
-user-assigned names remain in place. Server/node status appears under diagnostics,
+Controls have short English names using Home Assistant's entity translation
+mechanism; user-assigned names remain in place. Server/node status appears under diagnostics,
 and Ignore schedules under configuration. Counts suggest zero decimals, speed one
 decimal, and saved space two decimals. Values, units and switch direction do not
 change: **Pause processing ON means paused**, while **Processing enabled ON means

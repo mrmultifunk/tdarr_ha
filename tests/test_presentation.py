@@ -82,7 +82,7 @@ class PresentationTests(unittest.TestCase):
         self.assertEqual(status._attr_entity_category, "diagnostic")
         self.assertEqual(schedules._attr_entity_category, "config")
 
-    def test_translation_coverage_in_both_languages(self):
+    def test_english_text_and_key_coverage_in_both_locales(self):
         english = json.loads((ROOT / "strings.json").read_text())
         self.assertEqual(english, json.loads((ROOT / "translations/en.json").read_text()))
         required = {
@@ -92,6 +92,7 @@ class PresentationTests(unittest.TestCase):
         }
         for lang in ("en", "da"):
             document = json.loads((ROOT / f"translations/{lang}.json").read_text())
+            self.assertEqual(document, english)
             for domain, keys in required.items():
                 self.assertEqual(keys, set(document["entity"][domain]))
                 for key in keys:
