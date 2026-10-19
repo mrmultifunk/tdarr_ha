@@ -25,6 +25,7 @@ from .const import (
 )
 
 from .tdarr import Server
+from .polling import poll_data, PollError
 
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
@@ -133,42 +134,11 @@ class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self):
         """Fetch data from Tdarr Server."""
         try:
-            data = {}
-            data["server"] = await self._hass.async_add_executor_job(
-                self.tdarr.getStatus  # Fetch new status
-            )
-
-            data["nodes"] = await self._hass.async_add_executor_job(
-                self.tdarr.getNodes
-            )
-
-            data["stats"] = await self._hass.async_add_executor_job(
-                self.tdarr.getStats
-            )
-
-            data["staged"] = await self._hass.async_add_executor_job(
-                self.tdarr.getStaged
-            )
-
-            data["libraries"] = await self._hass.async_add_executor_job(
-                self.tdarr.getLibraries
-            )
-
-            data["globalsettings"] = await self._hass.async_add_executor_job(
-                self.tdarr.getSettings
-            )
-            for key in ("server", "nodes", "stats", "staged", "globalsettings"):
-                if not isinstance(data[key], dict) or data[key].get("status") == "ERROR":
-                    raise ValueError(f"Invalid Tdarr {key} response")
-            if not isinstance(data["libraries"], list):
-                raise ValueError("Invalid Tdarr libraries response")
-            return data
-        except Exception as ex:
-            self._available = False  # Mark as unavailable
-            _LOGGER.warning("Error communicating with Tdarr for %s", self.serverip)
-            raise UpdateFailed(
-                f"Error communicating with Tdarr for {self.serverip}"
-            ) from ex
+            return await poll_data(self._hass, self.tdarr)
+        except PollError as err:
+            # The coordinator logs failures/recovery. Avoid a duplicate warning
+            # on every poll and never include request headers or response bodies.
+            raise UpdateFailed(f"Tdarr {self.serverip}: {err}") from err
 
     async def reloadentities(self):
         _LOGGER.debug("Reloading?")

@@ -10,6 +10,6 @@
     "issue_tracker": "https://github.com/mrmultifunk/tdarr_ha/issues",
     "requirements": [],
     "ssdp": [],
-    "version": "1.19.0",
+    "version": "1.19.1",
     "zeroconf": []
   }

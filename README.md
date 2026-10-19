@@ -3,6 +3,31 @@
 ## This fork
 
 Based on [itchannel/tdarr_ha](https://github.com/itchannel/tdarr_ha).
+
+### 1.19.1: node session recovery
+
+Version 1.19.0 incorrectly treated the node `_id` as persistent. Tdarr can issue
+a new session ID on each node startup, leaving old entities unavailable and
+creating duplicates. Version 1.19.1 identifies nodes by their configured unique
+`nodeName` and resolves the current session ID for readings and pause commands.
+Keep node names unique and unchanged across restarts. A deliberate node rename
+is a new identity; unlike library IDs, session IDs cannot identify that rename.
+
+On upgrade, the oldest matching node entity is reused with its entity ID and
+customizations preserved. Matching is scoped to the config entry, entity type
+and original node name. Existing duplicates are not automatically deleted or
+disabled: they may still be referenced in user dashboards and automations.
+After updating and restarting Home Assistant, verify the restored original
+entities, then remove unused orphan duplicates through the entity settings.
+Do not remove/re-add the Tdarr integration or edit `.storage` manually.
+
+Transient polling timeouts, connection errors and HTTP 502/503/504 responses
+are retried once. Control commands are never automatically retried. Persistent
+errors now report the failed read and a safe error type/status (for example,
+`getNodes: ReadTimeout`) instead of discarding the cause. The coordinator handles
+failure/recovery logging without an extra warning on every poll. Real persistent
+failures still make entities unavailable; stale data is not presented as current.
+
 Version 1.19.0 adds **Process Library** switches and separate library statistics,
 alongside the **Scan for new files** buttons introduced in 1.18.1.
 
@@ -28,7 +53,7 @@ Tdarr UI on the next poll, and report failed commands in Home Assistant.
 
 ### Upgrade notes for 1.19.0
 
-- Existing node and library entities migrate from name-based unique IDs to
+- Historical note (superseded for nodes by 1.19.1 above): existing node and library entities migrate from name-based unique IDs to
   stable IDs, preserving their Home Assistant entity IDs and customizations
   when the old name identifies exactly one current entity. Do not rename nodes
   or libraries at the same time as this upgrade. Already-renamed or ambiguous

@@ -7,6 +7,7 @@ from homeassistant.exceptions import HomeAssistantError
 from . import TdarrEntity
 from .const import DOMAIN, COORDINATOR, SWITCHES
 from .discovery import register_entities
+from .nodes import node_name, find_node
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
@@ -30,13 +31,15 @@ class Switch(TdarrEntity, SwitchEntity):
     def __init__(self, coordinator, node, key, entry_id):
         self.object_name = key
         self._node_id = node.get("_id")
-        self._node_name = node.get("nodeName", self._node_id)
+        self._node_name = node_name(node) if self._node_id else None
         if key == "pauseAll":
             device_id = "tdarr_pause_all"
         elif key == "ignoreSchedules":
             device_id = "tdarr_ignore_schedules"
         else:
-            device_id = f"{entry_id}_node_{self._node_id}_paused"
+            device_id = f"{entry_id}_node_name_{self._node_name}_paused"
+            self.session_unique_prefix = f"{coordinator.serverip}-{entry_id}_node_"
+            self.session_unique_suffix = "_paused"
         self.legacy_unique_id = (
             f"{coordinator.serverip}-tdarr_node_{self._node_name}_paused"
             if self._node_id else None
@@ -45,8 +48,7 @@ class Switch(TdarrEntity, SwitchEntity):
 
     @property
     def node(self):
-        return next((n for n in self.coordinator.data["nodes"].values()
-                     if n.get("_id") == self._node_id), None)
+        return find_node(self.coordinator, self._node_name)
 
     @property
     def name(self):
@@ -76,7 +78,9 @@ class Switch(TdarrEntity, SwitchEntity):
             raise HomeAssistantError("Tdarr node or server is unavailable")
         try:
             result = await self.hass.async_add_executor_job(
-                self.coordinator.tdarr.pauseNode, self.object_name, enabled
+                self.coordinator.tdarr.pauseNode,
+                self.node["_id"] if self._node_id else self.object_name,
+                enabled
             )
             if result != "OK":
                 raise HomeAssistantError("Tdarr rejected the switch command")

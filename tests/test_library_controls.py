@@ -48,6 +48,7 @@ def modules():
     stubs["control_test"].TdarrEntity = Entity
     stubs["control_test.const"] = load_module("control_test.const", ROOT / "const.py")
     stubs["control_test.tdarr"] = api
+    stubs["control_test.nodes"] = load_module("control_test.nodes", ROOT / "nodes.py")
     stubs["homeassistant.components.switch"].SwitchEntity = type("SwitchEntity", (), {})
     sensor = stubs["homeassistant.components.sensor"]
     sensor.SensorEntity = type("SensorEntity", (), {})
@@ -63,6 +64,10 @@ def modules():
     config.CONN_CLASS_LOCAL_POLL = "local_poll"
     registry = stubs["homeassistant.helpers.entity_registry"]
     registry.async_get = lambda hass: hass.registry
+    registry.async_entries_for_config_entry = lambda registry, entry_id: [
+        row for row in getattr(registry, "test_entries", [])
+        if row.config_entry_id == entry_id
+    ]
     with patch.dict(sys.modules, stubs):
         discovery = load_module("control_test.discovery", ROOT / "discovery.py")
         stubs["control_test.discovery"] = discovery
@@ -197,6 +202,7 @@ class ControlTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_replace_node_same_count_and_migrate_entity_id(self):
         registry = Mock()
+        registry.test_entries = []
         registry.async_get_entity_id.side_effect = lambda domain, platform, uid: (
             "sensor.my_gpu" if uid == "localhost-tdarr_node_GPU" else None)
         registry.async_get.return_value = SimpleNamespace(config_entry_id="entry")
@@ -206,7 +212,7 @@ class ControlTests(unittest.IsolatedAsyncioTestCase):
         add = Mock()
         await sensors.async_setup_entry(self.hass, entry, add)
         registry.async_update_entity.assert_called_once_with(
-            "sensor.my_gpu", new_unique_id="localhost-entry_node_n1_node")
+            "sensor.my_gpu", new_unique_id="localhost-entry_node_name_GPU_node")
         first = add.call_args.args[0]
         old_node = next(e for e in first if getattr(e, "type", None) == "node")
         self.coordinator.data["nodes"] = {"n2": {"_id": "n2", "nodeName": "Replacement"}}

@@ -10,6 +10,7 @@ from homeassistant.components.sensor import (
 from . import TdarrEntity
 from .const import DOMAIN, COORDINATOR, SENSORS
 from .discovery import register_entities
+from .nodes import node_name, find_node
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -65,7 +66,10 @@ class TdarrSensor(
             self._device_id = "tdarr_" + self.type
         self.legacy_unique_id = f"{coordinator.serverip}-{self._device_id}"
         if type in ("node", "nodefps"):
-            self._device_id = f"{entry_id}_node_{sensor['_id']}_{type}"
+            self._node_name = node_name(sensor)
+            self._device_id = f"{entry_id}_node_name_{self._node_name}_{type}"
+            self.session_unique_prefix = f"{coordinator.serverip}-{entry_id}_node_"
+            self.session_unique_suffix = f"_{type}"
         elif type == "library" and sensor.get("_id"):
             self._device_id = f"{entry_id}_library_{sensor['_id']}_files"
         super().__init__(coordinator=coordinator, device_id=self._device_id, name=self.name)
@@ -79,7 +83,7 @@ class TdarrSensor(
                 return "Online"
             elif self.type == "nodefps":
                 fps = 0
-                for key1, value in self.coordinator.data.get("nodes", {}).get(self.sensor["_id"], {}).get("workers", {}).items():
+                for key1, value in (find_node(self.coordinator, self._node_name) or {}).get("workers", {}).items():
                     fps += value.get("fps", 0)
                 return fps
             elif self.type == "stats_spacesaved":
@@ -114,7 +118,7 @@ class TdarrSensor(
             if self.type == "server":
                 return self.coordinator.data.get("server", {})
             elif self.type == "node":
-                return self.coordinator.data.get("nodes",{}).get(self.sensor["_id"], {})
+                return (find_node(self.coordinator, self._node_name) or {})
             elif self.type == "stats_spacesaved":
                 return self.coordinator.data.get("stats", {})
             elif self.type == "library":
@@ -146,16 +150,9 @@ class TdarrSensor(
     def name(self):
         if self.type == "server":
             return "tdarr_server"
-        elif self.type == "node":
-            if "nodeName" in self.sensor:
-                return "tdarr_node_" + self.coordinator.data["nodes"].get(self.sensor["_id"], self.sensor).get("nodeName", "Unknown")
-            else:
-                return "tdarr_node_" + self.sensor.get("_id", "Unknown")
-        elif self.type == "nodefps":
-            if "nodeName" in self.sensor:
-                return "tdarr_node_" + self.coordinator.data["nodes"].get(self.sensor["_id"], self.sensor).get("nodeName", "Unknown") + "_fps"
-            else:
-                return "tdarr_node_" + self.sensor.get("_id", "Unknown") + "_fps"
+        elif self.type in ("node", "nodefps"):
+            suffix = "_fps" if self.type == "nodefps" else ""
+            return f"tdarr_node_{self._node_name}{suffix}"
         elif self.type == "library":
             library = next((lib for lib in self.coordinator.data["libraries"]
                             if lib.get("_id") == self.sensor.get("_id")), self.sensor)
@@ -169,7 +166,7 @@ class TdarrSensor(
         if not super().available:
             return False
         if self.type in ("node", "nodefps"):
-            return self.sensor["_id"] in self.coordinator.data["nodes"]
+            return find_node(self.coordinator, self._node_name) is not None
         if self.type == "library":
             return any(lib.get("_id") == self.sensor.get("_id")
                        for lib in self.coordinator.data["libraries"])
