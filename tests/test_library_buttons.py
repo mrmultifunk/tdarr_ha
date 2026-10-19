@@ -120,7 +120,7 @@ class ButtonTests(unittest.IsolatedAsyncioTestCase):
             self.coordinator.tdarr.scanLibrary, "a", "/new-path"
         )
         self.assertEqual(identity, self.button._device_id)
-        self.assertIn("Renamed", self.button.name)
+        self.assertIn("Renamed", self.button.legacy_name)
 
     async def test_deleted_or_offline_library_cannot_scan(self):
         self.coordinator.last_update_success = False

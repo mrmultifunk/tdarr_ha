@@ -22,7 +22,7 @@ def repair_node_identity(registry, entry, entity, domain):
         session_match = (
             old.unique_id.startswith(entity.session_unique_prefix)
             and old.unique_id.endswith(entity.session_unique_suffix)
-            and old.original_name == entity.name
+            and old.original_name == entity.legacy_name
         )
         if legacy_match or session_match:
             matches.append(old)

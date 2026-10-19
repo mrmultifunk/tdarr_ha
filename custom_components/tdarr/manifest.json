@@ -1,15 +1,17 @@
 {
-    "domain": "tdarr",
-    "name": "Tdarr",
-    "codeowners": ["@itchannel"],
-    "config_flow": true,
-    "dependencies": [],
-    "documentation": "https://github.com/mrmultifunk/tdarr_ha",
-    "homekit": {},
-    "iot_class": "local_polling",
-    "issue_tracker": "https://github.com/mrmultifunk/tdarr_ha/issues",
-    "requirements": [],
-    "ssdp": [],
-    "version": "1.19.1",
-    "zeroconf": []
-  }
+  "domain": "tdarr",
+  "name": "Tdarr",
+  "codeowners": [
+    "@itchannel"
+  ],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/mrmultifunk/tdarr_ha",
+  "homekit": {},
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/mrmultifunk/tdarr_ha/issues",
+  "requirements": [],
+  "ssdp": [],
+  "version": "1.20.0",
+  "zeroconf": []
+}

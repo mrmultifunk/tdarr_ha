@@ -1,5 +1,6 @@
 """Config flow for Tdarr integration."""
 import logging
+from urllib.parse import urlsplit
 
 import voluptuous as vol
 from homeassistant import config_entries, core, exceptions
@@ -17,6 +18,22 @@ from .const import (
 from .tdarr import Server
 
 _LOGGER = logging.getLogger(__name__)
+
+def web_url(value):
+    """Allow an optional HTTP(S) web interface URL without credentials."""
+    value = value.strip()
+    if not value:
+        return value
+    try:
+        parsed = urlsplit(value)
+        valid = parsed.scheme in ("http", "https") and parsed.hostname and not parsed.username and not parsed.password
+        parsed.port
+    except ValueError:
+        valid = False
+    if not valid:
+        raise vol.Invalid("Use an http:// or https:// URL without credentials")
+    return value
+
 
 DATA_SCHEMA = vol.Schema(
     {
@@ -85,12 +102,15 @@ class OptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
         if user_input is not None:
             options = dict(self.config_entry.options)
+            if "web_url" in user_input:
+                options["web_url"] = web_url(user_input["web_url"])
             options[UPDATE_INTERVAL] = user_input[UPDATE_INTERVAL]
             options[APIKEY] = user_input.get(
                 APIKEY, self.config_entry.options.get(APIKEY, self.config_entry.data.get(APIKEY, ""))
             ).strip()
             return self.async_create_entry(title="", data=options)
         options = {
+            vol.Optional("web_url", default=self.config_entry.options.get("web_url", "")): web_url,
             vol.Optional(
                 UPDATE_INTERVAL,
                 default=self.config_entry.options.get(

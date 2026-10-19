@@ -3,6 +3,7 @@
 from requests.exceptions import RequestException
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.const import EntityCategory
 
 from . import TdarrEntity
 from .const import DOMAIN, COORDINATOR, SWITCHES
@@ -30,6 +31,9 @@ class Switch(TdarrEntity, SwitchEntity):
 
     def __init__(self, coordinator, node, key, entry_id):
         self.object_name = key
+        self._attr_translation_key = key if key in SWITCHES else "node_paused"
+        if key == "ignoreSchedules":
+            self._attr_entity_category = EntityCategory.CONFIG
         self._node_id = node.get("_id")
         self._node_name = node_name(node) if self._node_id else None
         if key == "pauseAll":
@@ -51,7 +55,7 @@ class Switch(TdarrEntity, SwitchEntity):
         return find_node(self.coordinator, self._node_name)
 
     @property
-    def name(self):
+    def legacy_name(self):
         if self._node_id:
             node = self.node or {}
             return f"tdarr_node_{node.get('nodeName', self._node_name)}_paused"
@@ -108,6 +112,7 @@ class ProcessLibrarySwitch(TdarrEntity, SwitchEntity):
     """Enable or disable processing for one library, not the whole node."""
 
     _attr_icon = "mdi:folder-play"
+    _attr_translation_key = "process_library"
 
     def __init__(self, coordinator, entry_id, library):
         self._library_id = library["_id"]
@@ -124,7 +129,7 @@ class ProcessLibrarySwitch(TdarrEntity, SwitchEntity):
                      if lib.get("_id") == self._library_id), None)
 
     @property
-    def name(self):
+    def legacy_name(self):
         library = self.library or {}
         return f"Tdarr {library.get('name', self._library_name)} Process Library"
 

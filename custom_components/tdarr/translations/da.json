@@ -1,0 +1,123 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Serveren er allerede konfigureret"
+    },
+    "error": {
+      "cannot_connect": "Kunne ikke oprette forbindelse til Tdarr",
+      "invalid_auth": "Ugyldig godkendelse",
+      "invalid_apikey": "Ugyldig API-nøgle",
+      "auth_required": "Tdarr kræver en API-nøgle",
+      "unknown": "Uventet fejl. Se Home Assistants log."
+    },
+    "step": {
+      "user": {
+        "data": {
+          "serverip": "Serveradresse",
+          "serverport": "Port",
+          "apikey": "API-nøgle (valgfri)"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "update_interval": "Opdateringsinterval (sekunder)",
+          "apikey": "API-nøgle (valgfri)",
+          "web_url": "Adresse til webinterface (valgfri)"
+        },
+        "description": "Lad webadressen være tom for at bruge den konfigurerede serveradresse. Mindste opdateringsinterval er 5 sekunder."
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "server": {
+        "name": "Serverstatus"
+      },
+      "node": {
+        "name": "Status"
+      },
+      "nodefps": {
+        "name": "Hastighed"
+      },
+      "library": {
+        "name": "Filer"
+      },
+      "stats_spacesaved": {
+        "name": "Plads sparet"
+      },
+      "stats_transcodefilesremaining": {
+        "name": "Transkodningskø"
+      },
+      "stats_transcodedcount": {
+        "name": "Afsluttede transkodninger"
+      },
+      "stats_stagedcount": {
+        "name": "Filer klar til behandling"
+      },
+      "stats_healthcount": {
+        "name": "Kø til integritetskontrol"
+      },
+      "stats_transcodeerrorcount": {
+        "name": "Transkodningsfejl"
+      },
+      "stats_healtherrorcount": {
+        "name": "Fejl ved integritetskontrol"
+      },
+      "stats_totalfps": {
+        "name": "Samlet hastighed"
+      },
+      "sizeDiff": {
+        "name": "Plads sparet"
+      },
+      "totalTranscodeCount": {
+        "name": "Transkodninger"
+      },
+      "totalHealthCheckCount": {
+        "name": "Integritetskontroller"
+      }
+    },
+    "switch": {
+      "pauseAll": {
+        "name": "Sæt alle nodes på pause"
+      },
+      "ignoreSchedules": {
+        "name": "Ignorér tidsplaner"
+      },
+      "node_paused": {
+        "name": "Sæt behandling på pause"
+      },
+      "process_library": {
+        "name": "Behandling aktiveret"
+      }
+    },
+    "button": {
+      "scan_new_files": {
+        "name": "Scan efter nye filer"
+      }
+    }
+  },
+  "services": {
+    "refresh_library": {
+      "name": "Scan bibliotek",
+      "description": "Start en scanning af et Tdarr-bibliotek",
+      "fields": {
+        "library": {
+          "name": "Bibliotek",
+          "description": "Bibliotekets præcise navn eller ID"
+        },
+        "folderpath": {
+          "name": "Mappesti",
+          "description": "Bibliotekets kildemappe, som den ses af Tdarr"
+        },
+        "mode": {
+          "name": "Scanningstype",
+          "description": "Find nye filer eller genopbyg bibliotekets database"
+        }
+      }
+    }
+  }
+}

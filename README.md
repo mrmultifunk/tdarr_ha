@@ -4,6 +4,36 @@
 
 Based on [itchannel/tdarr_ha](https://github.com/itchannel/tdarr_ha).
 
+### 1.20.0: clearer devices and translated controls
+
+The integration now groups existing entities into separate devices:
+
+| Device | Contents |
+| --- | --- |
+| Tdarr Server | Global controls and aggregate statistics |
+| Tdarr · node name | Pause, speed and diagnostic status |
+| Tdarr · library name | Scan, processing, file count and library statistics |
+
+Controls have short English/Danish names using Home Assistant's entity
+translations. The installation's configured language selects the default names;
+user-assigned names remain in place. Server/node status appears under diagnostics,
+and Ignore schedules under configuration. Counts suggest zero decimals, speed one
+decimal, and saved space two decimals. Values, units and switch direction do not
+change: **Pause processing ON means paused**, while **Processing enabled ON means
+the library can be processed**.
+
+Every device links to the Tdarr web interface. The configured server address is
+used by default; an optional **Web interface URL** in integration options supports
+a different web port or reverse proxy without changing the API connection.
+
+Existing unique IDs and entity IDs are retained, including the 1.19.1 node-session
+fix. Home Assistant moves the registered entities to their new devices; it does
+not recreate them. Customized names and entity-based automation references are
+preserved. Device/area-based targets may need adjustment because the entities are
+now assigned to separate devices. Assign the new devices to the desired rooms.
+The original server device and its customization remain. No entities or orphan
+duplicates are automatically deleted.
+
 ### 1.19.1: node session recovery
 
 Version 1.19.0 incorrectly treated the node `_id` as persistent. Tdarr can issue
@@ -66,7 +96,7 @@ Tdarr UI on the next poll, and report failed commands in Home Assistant.
 - The legacy `tdarr.refresh_library` action now requires an exact library name
   or ID instead of matching a substring. Existing exact-name calls still work.
 
-Each button appears under the existing Tdarr server device and can be used in
+Each button appears under its library device and can be used in
 dashboards or with Home Assistant's `button.press` action. No helpers or manual
 library paths are needed. New libraries are discovered on the next integration
 update. Deleted libraries become unavailable; their entities can be removed
@@ -86,7 +116,7 @@ This fork uses the same `tdarr` integration domain as the original: install only
 one version. If already using the original, switch the HACS repository to this
 fork while preserving your Home Assistant integration configuration.
 
-Find the buttons under **Settings → Devices & services → Tdarr → Devices**.
+Find the buttons under **Settings → Devices & services → Tdarr → the library device**.
 The existing sensors, switches, and `tdarr.refresh_library` action are retained.
 
 ### Development checks

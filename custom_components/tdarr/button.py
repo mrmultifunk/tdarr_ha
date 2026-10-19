@@ -37,6 +37,7 @@ class TdarrScanButton(TdarrEntity, ButtonEntity):
     """Start a Find new scan without resetting the library's database."""
 
     _attr_icon = "mdi:folder-search"
+    _attr_translation_key = "scan_new_files"
 
     def __init__(self, coordinator, entry_id, library):
         self._library_id = library["_id"]
@@ -60,7 +61,7 @@ class TdarrScanButton(TdarrEntity, ButtonEntity):
         )
 
     @property
-    def name(self):
+    def legacy_name(self):
         library = self.library
         name = library["name"] if library else self._library_name
         return f"Tdarr {name} Scan for new files"

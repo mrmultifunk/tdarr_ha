@@ -11,6 +11,7 @@ from . import TdarrEntity
 from .const import DOMAIN, COORDINATOR, SENSORS
 from .discovery import register_entities
 from .nodes import node_name, find_node
+from homeassistant.const import EntityCategory
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,6 +47,14 @@ class TdarrSensor(
         self.sensor = sensor
         self.tdarroptions = options
         self.type = type
+        self._attr_translation_key = type
+        if type in ("server", "node"):
+            self._attr_entity_category = EntityCategory.DIAGNOSTIC
+        else:
+            self._attr_suggested_display_precision = (
+                2 if type == "stats_spacesaved" else
+                1 if type in ("nodefps", "stats_totalfps") else 0
+            )
         self._attr = {}
         self.coordinator = coordinator
         if self.type == "server":
@@ -72,7 +81,7 @@ class TdarrSensor(
             self.session_unique_suffix = f"_{type}"
         elif type == "library" and sensor.get("_id"):
             self._device_id = f"{entry_id}_library_{sensor['_id']}_files"
-        super().__init__(coordinator=coordinator, device_id=self._device_id, name=self.name)
+        super().__init__(coordinator=coordinator, device_id=self._device_id, name=self.legacy_name)
 
 
     def get_value(self, ftype):
@@ -147,7 +156,7 @@ class TdarrSensor(
                 return None
 
     @property
-    def name(self):
+    def legacy_name(self):
         if self.type == "server":
             return "tdarr_server"
         elif self.type in ("node", "nodefps"):
@@ -219,6 +228,8 @@ class LibraryStatistic(TdarrEntity, SensorEntity):
         self._library_id = library["_id"]
         self._library_name = library["name"]
         self._key = key
+        self._attr_translation_key = key
+        self._attr_suggested_display_precision = 2 if key == "sizeDiff" else 0
         label, unit, icon, device_class = LIBRARY_STATS[key]
         self._label = label
         self._attr_native_unit_of_measurement = unit
@@ -236,7 +247,7 @@ class LibraryStatistic(TdarrEntity, SensorEntity):
                      if lib.get("_id") == self._library_id), None)
 
     @property
-    def name(self):
+    def legacy_name(self):
         library = self.library or {}
         return f"Tdarr {library.get('name', self._library_name)} {self._label}"
 

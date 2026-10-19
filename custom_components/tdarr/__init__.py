@@ -7,6 +7,9 @@ import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
+from homeassistant.helpers import device_registry as dr
+from .presentation import device_info
+
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
     DataUpdateCoordinator,
@@ -53,6 +56,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
 
     coordinator = TdarrDataUpdateCoordinator(hass, serverip, serverport, update_interval, apikey)
 
+    coordinator.entry_id = entry.entry_id
+    host = f"[{serverip}]" if ":" in serverip and not serverip.startswith("[") else serverip
+    coordinator.web_url = entry.options.get("web_url") or f"http://{host}:{serverport}"
     await coordinator.async_refresh()  # Get initial data
        # Registers update listener to update config entry when options are updated.
     #_LOGGER.debug(coordinator.data)
@@ -72,6 +78,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
         
 
 
+    server_device = dr.async_get(hass).async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, serverip)},
+        name=f"Tdarr Server ({serverip})",
+        manufacturer=MANUFACTURER,
+        configuration_url=coordinator.web_url,
+    )
+    coordinator.server_device_id = server_device.id
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
     async def async_refresh_library_service(service_call):
@@ -153,6 +167,8 @@ class TdarrDataUpdateCoordinator(DataUpdateCoordinator):
         await asyncio.gather(*reload_tasks)
 
 class TdarrEntity(CoordinatorEntity):
+    _attr_has_entity_name = True
+
     def __init__(
             self, *, device_id: str, name: str, coordinator: TdarrDataUpdateCoordinator
     ):
@@ -167,32 +183,10 @@ class TdarrEntity(CoordinatorEntity):
         self._handle_coordinator_update()
 
     @property
-    def name(self):
-        """Return the name of the entity."""
-        #_LOGGER.debug(self._name)
-        return self._name
-
-    @property
     def unique_id(self):
         """Return the unique ID of the entity."""
         return f"{self.coordinator.serverip}-{self._device_id}"
 
     @property
     def device_info(self):
-        """Return device information about this device."""
-        if self._device_id is None:
-            return None
-        
-        sw_version = "Unknown"
-
-        if "version" in self.coordinator.data["server"]:
-            sw_version = self.coordinator.data["server"]["version"]
-
-
-        return {
-            "identifiers": {(DOMAIN, self.coordinator.serverip)},
-            "name": f"Tdarr Server ({self.coordinator.serverip})",
-            #"hw_version": self.coordinator.data["system"]["hardware"],
-            "sw_version": sw_version,
-            "manufacturer": MANUFACTURER
-        }
+        return device_info(self)

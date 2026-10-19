@@ -1,55 +1,123 @@
 {
-    "config": {
-        "abort": {
-            "already_configured": "Account is already configured"
-        },
-        "error": {
-            "cannot_connect": "Failed to connect to Tdarr Server",
-            "invalid_auth": "Invalid authentication",
-            "invalid_apikey": "Invalid API Key",
-            "auth_required": "Tdarr server requires API Key as authentication is enabled!",
-            "unknown": "Unexpected error (Enable debug for more info)"
-        },
-        "step": {
-            "user": {
-                "data": {
-                    "serverip": "Tdarr Server IP",
-                    "serverport": "Tdarr Server Port",
-                    "apikey": "Tdarr API Key (Only if auth is enabled otherwise leave blank)"
-                }
-            }
-        }
+  "config": {
+    "abort": {
+      "already_configured": "Account is already configured"
     },
-
-        "options": {
-        "step": {
-            "init": {
-                "data": {
-                    "update_interval": "Interval to poll Server (Seconds)",
-                    "apikey": "Tdarr API Key (Only if auth is enabled otherwise leave blank)"
-                },
-                "description": "Configure Server Options"
-            }
-        }
+    "error": {
+      "cannot_connect": "Failed to connect to Tdarr Server",
+      "invalid_auth": "Invalid authentication",
+      "invalid_apikey": "Invalid API Key",
+      "auth_required": "Tdarr server requires API Key as authentication is enabled!",
+      "unknown": "Unexpected error. Check the Home Assistant log."
     },
-    "services":{
-        "refresh_library": {
-            "name": "Library",
-            "description": "Rescan/Refresh Tdarr Library",
-            "fields": {
-                "library": {
-                    "name": "Library",
-                    "description": "Library Name to refresh"
-                },
-                "folderpath": {
-                    "name": "Folder Path",
-                    "description": "Library Folder path e.g. /Movies (Have to include this for now)"
-                },
-                "mode": {
-                    "name": "Scan Mode",
-                    "description": "Mode to scan (default find new files only)"
-                }
-            }
+    "step": {
+      "user": {
+        "data": {
+          "serverip": "Tdarr Server IP",
+          "serverport": "Tdarr Server Port",
+          "apikey": "API key (optional)"
         }
+      }
     }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "update_interval": "Update interval (seconds)",
+          "apikey": "API key (optional)",
+          "web_url": "Web interface URL (optional)"
+        },
+        "description": "Leave the web interface URL blank to use the configured server address. Minimum update interval: 5 seconds."
+      }
+    }
+  },
+  "services": {
+    "refresh_library": {
+      "name": "Library",
+      "description": "Rescan/Refresh Tdarr Library",
+      "fields": {
+        "library": {
+          "name": "Library",
+          "description": "Exact library name or ID"
+        },
+        "folderpath": {
+          "name": "Folder Path",
+          "description": "Library Folder path e.g. /Movies (Have to include this for now)"
+        },
+        "mode": {
+          "name": "Scan Mode",
+          "description": "Mode to scan (default find new files only)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "server": {
+        "name": "Server status"
+      },
+      "node": {
+        "name": "Status"
+      },
+      "nodefps": {
+        "name": "Speed"
+      },
+      "library": {
+        "name": "Files"
+      },
+      "stats_spacesaved": {
+        "name": "Space saved"
+      },
+      "stats_transcodefilesremaining": {
+        "name": "Transcode queue"
+      },
+      "stats_transcodedcount": {
+        "name": "Transcodes completed"
+      },
+      "stats_stagedcount": {
+        "name": "Staged files"
+      },
+      "stats_healthcount": {
+        "name": "Health check queue"
+      },
+      "stats_transcodeerrorcount": {
+        "name": "Transcode errors"
+      },
+      "stats_healtherrorcount": {
+        "name": "Health check errors"
+      },
+      "stats_totalfps": {
+        "name": "Total speed"
+      },
+      "sizeDiff": {
+        "name": "Space saved"
+      },
+      "totalTranscodeCount": {
+        "name": "Transcodes"
+      },
+      "totalHealthCheckCount": {
+        "name": "Health checks"
+      }
+    },
+    "switch": {
+      "pauseAll": {
+        "name": "Pause all nodes"
+      },
+      "ignoreSchedules": {
+        "name": "Ignore schedules"
+      },
+      "node_paused": {
+        "name": "Pause processing"
+      },
+      "process_library": {
+        "name": "Processing enabled"
+      }
+    },
+    "button": {
+      "scan_new_files": {
+        "name": "Scan for new files"
+      }
+    }
+  }
 }

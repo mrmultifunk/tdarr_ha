@@ -42,9 +42,10 @@ def modules():
     stubs = {name: ModuleType(name) for name in (
         "control_test", "homeassistant", "homeassistant.components",
         "homeassistant.components.switch", "homeassistant.components.sensor",
-        "homeassistant.core", "homeassistant.exceptions", "homeassistant.helpers",
+        "homeassistant.core", "homeassistant.exceptions", "homeassistant.helpers", "homeassistant.const",
         "homeassistant.helpers.entity_registry", "homeassistant.config_entries",
     )}
+    stubs["homeassistant.const"].EntityCategory = SimpleNamespace(DIAGNOSTIC="diagnostic", CONFIG="config")
     stubs["control_test"].TdarrEntity = Entity
     stubs["control_test.const"] = load_module("control_test.const", ROOT / "const.py")
     stubs["control_test.tdarr"] = api
@@ -182,7 +183,7 @@ class ControlTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(count.native_value, 5)
         identity = saved.unique_id
         self.library["name"] = "Renamed"
-        self.assertIn("Renamed", saved.name)
+        self.assertIn("Renamed", saved.legacy_name)
         self.assertEqual(saved.unique_id, identity)
         self.library["totalTranscodeCount"] = 0
         self.assertEqual(count.native_value, 0)
@@ -197,7 +198,7 @@ class ControlTests(unittest.IsolatedAsyncioTestCase):
         self.library["name"] = "New name"
         self.library["totalFiles"] = 12
         self.assertEqual(entity.native_value, 12)
-        self.assertIn("New name", entity.name)
+        self.assertIn("New name", entity.legacy_name)
         self.assertEqual(entity.legacy_unique_id, "localhost-tdarr_library_Movies")
 
     async def test_replace_node_same_count_and_migrate_entity_id(self):
