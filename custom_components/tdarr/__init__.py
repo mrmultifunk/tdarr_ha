@@ -9,6 +9,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from .presentation import device_info
+from .discovery import remove_legacy_server_status
 
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
@@ -89,6 +90,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     )
     coordinator.server_device_id = server_device.id
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    remove_legacy_server_status(hass, entry, serverip)
 
     async def async_refresh_library_service(service_call):
         await hass.async_add_executor_job(

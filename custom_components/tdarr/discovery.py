@@ -63,3 +63,11 @@ def register_entities(hass, entry, coordinator, async_add_entities, factory, dom
 
     discover()
     entry.async_on_unload(coordinator.async_add_listener(discover))
+
+
+def remove_legacy_server_status(hass, entry, serverip):
+    """Retire only this entry's exact obsolete raw status entity."""
+    registry = er.async_get(hass)
+    entity_id = registry.async_get_entity_id("sensor", DOMAIN, f"{serverip}-tdarr_server")
+    if entity_id and registry.async_get(entity_id).config_entry_id == entry.entry_id:
+        registry.async_remove(entity_id)

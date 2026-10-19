@@ -1,5 +1,4 @@
 import logging
-import re
 
 from homeassistant.components.sensor import (
     SensorEntity,
@@ -48,7 +47,7 @@ class TdarrSensor(
         self.tdarroptions = options
         self.type = type
         self._attr_translation_key = type
-        if type in ("server", "node"):
+        if type == "node":
             self._attr_entity_category = EntityCategory.DIAGNOSTIC
         else:
             self._attr_suggested_display_precision = (
@@ -57,9 +56,7 @@ class TdarrSensor(
             )
         self._attr = {}
         self.coordinator = coordinator
-        if self.type == "server":
-            self._device_id = "tdarr_server"
-        elif self.type == "node":
+        if self.type == "node":
             if "nodeName" in self.sensor:
                 self._device_id = "tdarr_node_" + self.sensor.get("nodeName", "")
             else:
@@ -86,9 +83,7 @@ class TdarrSensor(
 
     def get_value(self, ftype):
         if ftype == "state":
-            if self.type == "server":
-                return self.coordinator.data.get("server", {}).get("status")
-            elif self.type == "node":
+            if self.type == "node":
                 return "Online"
             elif self.type == "nodefps":
                 fps = 0
@@ -124,9 +119,7 @@ class TdarrSensor(
                 return fps
 
         if ftype == "attributes":
-            if self.type == "server":
-                return self.coordinator.data.get("server", {})
-            elif self.type == "node":
+            if self.type == "node":
                 return (find_node(self.coordinator, self._node_name) or {})
             elif self.type == "stats_spacesaved":
                 return self.coordinator.data.get("stats", {})
@@ -157,9 +150,7 @@ class TdarrSensor(
 
     @property
     def legacy_name(self):
-        if self.type == "server":
-            return "tdarr_server"
-        elif self.type in ("node", "nodefps"):
+        if self.type in ("node", "nodefps"):
             suffix = "_fps" if self.type == "nodefps" else ""
             return f"tdarr_node_{self._node_name}{suffix}"
         elif self.type == "library":

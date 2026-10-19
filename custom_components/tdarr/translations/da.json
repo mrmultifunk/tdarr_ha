@@ -54,9 +54,6 @@
   },
   "entity": {
     "sensor": {
-      "server": {
-        "name": "Server status"
-      },
       "node": {
         "name": "Status"
       },

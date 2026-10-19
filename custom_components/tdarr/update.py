@@ -3,7 +3,7 @@
 from datetime import timedelta
 import logging
 
-from homeassistant.components.update import UpdateEntity
+from homeassistant.components.update import UpdateEntity, UpdateEntityFeature
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from . import TdarrEntity
@@ -34,7 +34,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
 class ServerUpdate(TdarrEntity, UpdateEntity):
     _attr_translation_key = "server_update"
-    _attr_supported_features = 0
+    _attr_supported_features = UpdateEntityFeature(0)
     _attr_release_url = RELEASE_URL
     _attr_title = "Tdarr Server"
 
@@ -48,6 +48,11 @@ class ServerUpdate(TdarrEntity, UpdateEntity):
         await super().async_added_to_hass()
         for coordinator in (self.status, self.releases):
             self.async_on_remove(coordinator.async_add_listener(self.async_write_ha_state))
+
+    async def async_update(self):
+        """Refresh server version and release information on explicit request."""
+        await self.status.async_request_refresh()
+        await self.releases.async_request_refresh()
 
     @property
     def available(self):

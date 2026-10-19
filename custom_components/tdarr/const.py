@@ -8,7 +8,6 @@ COORDINATOR = "coordinator"
 APIKEY = "apikey"
 
 SENSORS = {
-    "server": {"icon": "mdi:server", "type": "single", "entry": "server"},
     "stats_spacesaved": {"icon": "mdi:harddisk","type": "single", "entry": "stats", "unit_of_measurement": "GB", "device_class": "data_size"},
     "stats_transcodefilesremaining": {"icon": "mdi:file-multiple", "unit_of_measurement": "Files", "type": "single", "entry": "stats"},
     "stats_transcodedcount": {"icon": "mdi:file-multiple", "unit_of_measurement": "Files", "type": "single", "entry": "stats"},

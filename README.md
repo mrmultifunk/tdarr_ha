@@ -1,170 +1,93 @@
-# Tdarr Home Assistant Integration
+# Tdarr for Home Assistant
 
-## This fork
+Monitor your Tdarr server, nodes and libraries, scan for new files and control processing from Home Assistant.
 
-Based on [itchannel/tdarr_ha](https://github.com/itchannel/tdarr_ha).
+Maintained by [mrmultifunk](https://github.com/mrmultifunk), based on the original integration by [itchannel](https://github.com/itchannel/tdarr_ha). Integration-provided names and settings are in English. Your own names are preserved.
 
-### 1.20.1: English interface
+## Features
 
-Integration-provided names, settings and messages are now English, including
-when Home Assistant uses Danish. The Danish locale intentionally uses the same
-English text to keep the interface consistent. User-assigned names and library
-or node names from Tdarr are preserved, as are all entity IDs.
-
-### 1.20.0: clearer devices and controls
-
-The integration now groups existing entities into separate devices:
-
-| Device | Contents |
+| Device | Controls and information |
 | --- | --- |
-| Tdarr Server | Global controls and aggregate statistics |
-| Tdarr · node name | Pause, speed and diagnostic status |
-| Tdarr · library name | Scan, processing, file count and library statistics |
+| Server | Connection, server update availability, global pause, ignore schedules, queue/error counts, total speed and aggregate statistics |
+| Each node | Pause processing, processing active, status and speed |
+| Each library | Scan for new files, processing enabled, files, space saved, transcodes and health checks |
 
-Controls have short English names using Home Assistant's entity translation
-mechanism; user-assigned names remain in place. Server/node status appears under diagnostics,
-and Ignore schedules under configuration. Counts suggest zero decimals, speed one
-decimal, and saved space two decimals. Values, units and switch direction do not
-change: **Pause processing ON means paused**, while **Processing enabled ON means
-the library can be processed**.
+Devices link to the Tdarr web interface. New nodes and libraries are discovered automatically.
 
-Every device links to the Tdarr web interface. The configured server address is
-used by default; an optional **Web interface URL** in integration options supports
-a different web port or reverse proxy without changing the API connection.
+## Installation with HACS
 
-Existing unique IDs and entity IDs are retained, including the 1.19.1 node-session
-fix. Home Assistant moves the registered entities to their new devices; it does
-not recreate them. Customized names and entity-based automation references are
-preserved. Device/area-based targets may need adjustment because the entities are
-now assigned to separate devices. Assign the new devices to the desired rooms.
-The original server device and its customization remain. No entities or orphan
-duplicates are automatically deleted.
+1. In HACS, open the menu and select **Custom repositories**.
+2. Add `https://github.com/mrmultifunk/tdarr_ha` with type **Integration**.
+3. Find **Tdarr — mrmultifunk** in HACS and download it.
+4. Restart Home Assistant.
+5. Open **Settings → Devices & services → Add integration → Tdarr** and enter your server connection details.
 
-### 1.19.1: node session recovery
+This fork uses the same `tdarr` domain as the original integration. Install only one version. When switching from the original, preserve the existing Home Assistant integration configuration; do not remove and re-add it just to change the HACS source.
 
-Version 1.19.0 incorrectly treated the node `_id` as persistent. Tdarr can issue
-a new session ID on each node startup, leaving old entities unavailable and
-creating duplicates. Version 1.19.1 identifies nodes by their configured unique
-`nodeName` and resolves the current session ID for readings and pause commands.
-Keep node names unique and unchanged across restarts. A deliberate node rename
-is a new identity; unlike library IDs, session IDs cannot identify that rename.
+### Manual installation
 
-On upgrade, the oldest matching node entity is reused with its entity ID and
-customizations preserved. Matching is scoped to the config entry, entity type
-and original node name. Existing duplicates are not automatically deleted or
-disabled: they may still be referenced in user dashboards and automations.
-After updating and restarting Home Assistant, verify the restored original
-entities, then remove unused orphan duplicates through the entity settings.
-Do not remove/re-add the Tdarr integration or edit `.storage` manually.
+Copy `custom_components/tdarr` from a [release](https://github.com/mrmultifunk/tdarr_ha/releases) into `/config/custom_components/tdarr`, restart Home Assistant and add the integration as above.
 
-Transient polling timeouts, connection errors and HTTP 502/503/504 responses
-are retried once. Control commands are never automatically retried. Persistent
-errors now report the failed read and a safe error type/status (for example,
-`getNodes: ReadTimeout`) instead of discarding the cause. The coordinator handles
-failure/recovery logging without an extra warning on every poll. Real persistent
-failures still make entities unavailable; stale data is not presented as current.
+## Configuration
 
-Version 1.19.0 adds **Process Library** switches and separate library statistics,
-alongside the **Scan for new files** buttons introduced in 1.18.1.
+- **Server IP / host:** the Tdarr server address reachable from Home Assistant.
+- **Port:** the exposed Tdarr API port (default `8265`). Use your mapped port if different.
+- **API key:** configure it in the integration options if your server requires one.
+- **Polling interval:** default 60 seconds; minimum 5 seconds. Longer intervals reduce server load.
+- **Web interface URL:** optional URL for device links, useful when the web UI uses a different port or a reverse proxy. This does not change the API connection.
 
-### Library controls and statistics
+Change options through **Settings → Devices & services → Tdarr → Configure**. Assign the server, node and library devices to the desired rooms. Give each Tdarr node a unique, stable name to preserve its entities across restarts.
 
-Each real library has:
+## Using the integration
 
-- **Scan for new files**: starts a Find new scan.
-- **Process Library**: enables/disables Tdarr processing for that library. This
-  changes Tdarr's `processLibrary` setting; it is not an immediate worker kill
-  or a pause of all nodes. It does not change the library's plugins or flows.
-- **Space saved** in GB, **Transcodes**, and **Health checks** numeric sensors.
-- The existing **file count** sensor and its detailed attributes.
+### Libraries
 
-Statistics use the existing Tdarr responses, without extra polling calls.
-The new sensors support history/long-term statistics as numeric measurements.
-Missing values are shown as unknown, not fabricated zeroes. Savings may be
-negative and counters may reset when statistics are reset in Tdarr.
+**Scan for new files** runs Tdarr's **Scan (Find new)** for the selected library's configured folder. It finds new files and removes records for missing files. It does not run **Scan (Fresh)** or reset the library database. A successful press confirms acceptance, not completion.
 
-New nodes and libraries are discovered on the next poll without reloading all
-servers. Removed ones become unavailable. Switches reflect changes made in the
-Tdarr UI on the next poll, and report failed commands in Home Assistant.
+**Processing enabled** controls the library's `processLibrary` setting. On allows processing; off disables it. This is not an immediate worker kill and does not alter plugins or flows.
 
-### Upgrade notes for 1.19.0
+Library statistics expose file count, space saved in GB, transcodes and health checks. Savings can be negative, and counts can reset. Missing values appear as unknown. The Files sensor also includes codec, container and resolution details.
 
-- Historical note (superseded for nodes by 1.19.1 above): existing node and library entities migrate from name-based unique IDs to
-  stable IDs, preserving their Home Assistant entity IDs and customizations
-  when the old name identifies exactly one current entity. Do not rename nodes
-  or libraries at the same time as this upgrade. Already-renamed or ambiguous
-  legacy entries cannot be safely matched and are not guessed or deleted.
-- The polling interval is now saved correctly in options (minimum 5 seconds).
-  Values previously saved by the old flow in config data remain a fallback.
-- API keys are no longer logged by the options flow. Options are compatible
-  with Home Assistant's current read-only `config_entry` property.
-- All HTTP calls have transport timeouts; failed polling becomes unavailable.
-- The legacy `tdarr.refresh_library` action now requires an exact library name
-  or ID instead of matching a substring. Existing exact-name calls still work.
+### Nodes and global controls
 
-Each button appears under its library device and can be used in
-dashboards or with Home Assistant's `button.press` action. No helpers or manual
-library paths are needed. New libraries are discovered on the next integration
-update. Deleted libraries become unavailable; their entities can be removed
-manually. Library renames retain the same unique ID.
+**Pause processing** on means paused; off resumes processing. Global pause applies across nodes. **Ignore schedules** controls Tdarr's scheduling override.
 
-The button runs Tdarr's **Scan (Find new)** using the library's exact ID and
-configured source folder. It finds new files and removes database entries for
-files that no longer exist in that folder. It does not run **Scan (Fresh)** or
-reset the library database. A successful press means Tdarr accepted the request,
-not that the scan has finished.
+**Processing active** uses the workers' `idle` flags, so work with zero FPS still counts as active. No workers means off. Unsupported or missing activity data means unknown; a missing node becomes unavailable.
 
-### Install this fork
+### Server connection
 
-Add `https://github.com/mrmultifunk/tdarr_ha` as a HACS custom repository with
-category **Integration**, download this fork, and restart Home Assistant.
-This fork uses the same `tdarr` integration domain as the original: install only
-one version. If already using the original, switch the HACS repository to this
-fork while preserving your Home Assistant integration configuration.
+**Server connection** uses the connectivity device class:
 
-Find the buttons under **Settings → Devices & services → Tdarr → the library device**.
-The existing sensors, switches, and `tdarr.refresh_library` action are retained.
+- `on`: the server status API responded successfully.
+- `off`: the status request failed or returned an invalid/error response.
 
-### Development checks
+Attributes include raw status, version, uptime in seconds, OS, last successful contact and a sanitized error. On a failed check, details remain from the last successful response. A lightweight status request runs at the configured interval independently of library/statistics polling.
 
-Run `python -m unittest discover -s tests -v` with `requests` and `voluptuous` installed.
-These isolated tests mock Home Assistant and HTTP; they do not replace a live
-test against your Home Assistant and Tdarr installations.
+This is the replacement for the old raw **Server status** sensor, which is removed on upgrade. Move any dashboard or automation references to the binary sensor. Read its `status` attribute if you need Tdarr's raw status value.
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Default-orange.svg?style=for-the-badge)](https://github.com/custom-components/hacs)
+### Updates
 
-[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/itchannel)
+There are two separate update paths:
 
-## Install
-Use HACS and add as a custom repo. Once the integration is installed go to your integrations and follow the configuration options below:
-- Tdarr Server IP
-- Tdarr Port (Prefilled to Tdarr default port 8265)
+- **Integration:** HACS downloads releases from this repository. Restart Home Assistant after installing.
+- **Tdarr server:** the **Server update** entity checks [Tdarr's official stable release manifest](https://storage.tdarr.io/versions.json) every six hours. It shows installed/latest versions and update availability. It has no Install action: update your Docker Compose stack or other Tdarr deployment manually.
 
-## Currently Supported
-- Server status
-- Node information
-- Node FPS
-- Library information and Statistics
-- Switches to pause/unpause a node
+Find **Server update** under the server device's diagnostic entities, or filter **Settings → Devices & services → Entities** by integration **Tdarr** and domain **update**. The generated entity ID depends on device naming and existing customizations; it is not guaranteed to be `update.tdarr_server`.
 
-## Screenshots
-![Paused Sensor](https://github.com/itchannel/screenshots/raw/main/tdarr_node_paused.jpg)
+The release check needs outbound HTTPS access to `storage.tdarr.io`. If it fails, only the server update entity becomes unavailable; local controls continue to work. Development version strings are not compared with stable releases. The `homeassistant.update_entity` action on the update entity requests a fresh version check.
 
-![Library Sensor](https://github.com/itchannel/screenshots/raw/main/tdarr_library_sensor.jpg)
+## Troubleshooting
 
-## Additional Information
+- **New release missing in HACS:** select the repository's **Update information**, then **Redownload** and choose the release. Confirm the repository link points to `mrmultifunk/tdarr_ha`.
+- **Entity missing after an upgrade:** restart Home Assistant, check the Entities list including disabled entities, and check the Home Assistant log for `custom_components.tdarr` errors.
+- **Controls/statistics unavailable but connection on:** a different Tdarr API endpoint may have failed. The log identifies the endpoint and safe error type.
+- **Old duplicate node entities:** keep node names unique and stable. Verify which entities are active before manually removing obsolete duplicates. Do not edit `.storage` files.
+- **Removed library/node:** its entities become unavailable. Remove unused entries manually once they are no longer referenced.
 
-The integration will automatically add new nodes as they come online. Old nodes that are no longer used will need to be manually deleted from HA if no longer used.
+For problems, [open an issue](https://github.com/mrmultifunk/tdarr_ha/issues) with integration, Home Assistant and Tdarr versions and the relevant error. Do not include API keys.
 
-All sensors display any available additional info in the sensor attributes section. This information can be used by you to create more verbose sensors using Home Assistant templates.
+## Release history and development
 
+See [CHANGELOG.md](CHANGELOG.md) for version history and [GitHub Releases](https://github.com/mrmultifunk/tdarr_ha/releases) for downloads.
 
-This is a custom integration I have created to allow me to use HA to control my nodes such as pausing/unpausing transcoding depending on how much excess solar electricity I have.
-
-## Version 1.21.0
-
-- HACS displays **Tdarr — mrmultifunk**; fork maintenance is assigned to @mrmultifunk. Original author credit is retained.
-- **Server update** is read-only: checks the official Tdarr stable release manifest every six hours. Update your Docker Compose stack manually. HACS continues to handle integration updates. Development version strings are not compared to stable releases. Internet errors make only this update entity unavailable.
-- **Server connection** uses the connectivity device class. On means the status API responded successfully; off means it failed. A separate lightweight status request runs at the configured polling interval, so failures of library/statistics endpoints do not falsely report a disconnected server. Attributes include the last reported status, version, uptime (seconds), OS, last successful check, and a sanitized error. Details are retained from the last successful response while disconnected.
-- The existing **Server status** sensor and all existing entity IDs remain intact for compatibility. Its raw status normally reads `good`; it has no documented fixed enum. You may disable it after moving dashboards and automations to the new binary sensor.
-- Each node has **Processing active** (running device class), using workers' boolean `idle` flags, including work with zero FPS. No workers means off; unsupported/missing activity data means unknown. Missing nodes are unavailable. Node names remain the stable identity across restarts.
+Run `python -m unittest discover -s tests -v` with `requests` and `voluptuous` installed. Tests isolate HTTP and Home Assistant dependencies; they do not replace testing against a running Home Assistant and Tdarr server.

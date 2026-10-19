@@ -63,7 +63,7 @@ class PresentationTests(unittest.TestCase):
         self.assertEqual(pause.unique_id, "localhost-entry_node_name_Arc-A750_paused")
 
     def test_server_and_all_files_keep_original_device(self):
-        for kind, value in (("server", {}), ("library", {"name": "All"})):
+        for kind, value in (("stats_spacesaved", {}), ("library", {"name": "All"})):
             entity = controls.sensors.TdarrSensor(self.coordinator, value, {}, kind, "entry")
             info = presentation.device_info(entity)
             self.assertEqual(info["identifiers"], {("tdarr", "localhost")})

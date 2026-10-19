@@ -1,6 +1,7 @@
 """Regression tests for connectivity, activity and read-only release checks."""
 
 import sys
+from enum import IntFlag
 from datetime import timedelta
 from types import ModuleType, SimpleNamespace
 import unittest
@@ -11,6 +12,11 @@ import requests
 from test_library_buttons import ROOT, load_module
 from test_library_controls import Entity, discovery
 from test_presentation import presentation
+
+
+class UpdateEntityFeature(IntFlag):
+    INSTALL = 1
+    PROGRESS = 4
 
 
 class Coordinator:
@@ -38,6 +44,7 @@ binary = stubs["homeassistant.components.binary_sensor"]
 binary.BinarySensorEntity = type("BinarySensorEntity", (), {})
 binary.BinarySensorDeviceClass = SimpleNamespace(CONNECTIVITY="connectivity", RUNNING="running")
 stubs["homeassistant.components.update"].UpdateEntity = type("UpdateEntity", (), {})
+stubs["homeassistant.components.update"].UpdateEntityFeature = UpdateEntityFeature
 helpers = stubs["homeassistant.helpers.update_coordinator"]
 helpers.DataUpdateCoordinator = Coordinator
 helpers.UpdateFailed = type("UpdateFailed", (Exception,), {})
@@ -103,7 +110,9 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
     def test_release_comparison_and_no_install(self):
         remote = SimpleNamespace(data="3.01.00", last_update_success=True)
         entity = updates.ServerUpdate(self.local, self.status, remote)
-        self.assertEqual(entity._attr_supported_features, 0)
+        self.assertIsInstance(entity._attr_supported_features, UpdateEntityFeature)
+        self.assertFalse(UpdateEntityFeature.INSTALL in entity._attr_supported_features)
+        self.assertFalse(UpdateEntityFeature.PROGRESS in entity._attr_supported_features)
         self.assertTrue(entity.available)
         self.assertTrue(entity.version_is_newer("3.01.00", "3.00.00"))
         self.assertFalse(entity.version_is_newer("3.01.00", "3.02.00"))
@@ -128,3 +137,27 @@ class ServerTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(releases.fetch_latest(), "3.01.00")
             get.assert_called_once_with(releases.VERSIONS_URL, timeout=10)
             get.return_value.raise_for_status.assert_called_once()
+
+
+    async def test_manual_update_refreshes_both_sources(self):
+        remote = SimpleNamespace(async_request_refresh=AsyncMock())
+        self.status.async_request_refresh = AsyncMock()
+        entity = updates.ServerUpdate(self.local, self.status, remote)
+        await entity.async_update()
+        self.status.async_request_refresh.assert_awaited_once()
+        remote.async_request_refresh.assert_awaited_once()
+
+    def test_removal_is_scoped_to_obsolete_entity_and_entry(self):
+        registry = Mock()
+        registry.async_get_entity_id.return_value = "sensor.custom_server_status"
+        registry.async_get.return_value = SimpleNamespace(config_entry_id="entry")
+        hass = SimpleNamespace(registry=registry)
+        entry = SimpleNamespace(entry_id="entry")
+        discovery.remove_legacy_server_status(hass, entry, "host")
+        registry.async_get_entity_id.assert_called_once_with("sensor", "tdarr", "host-tdarr_server")
+        registry.async_remove.assert_called_once_with("sensor.custom_server_status")
+        registry.async_remove.reset_mock()
+        registry.async_get.return_value.config_entry_id = "another_entry"
+        discovery.remove_legacy_server_status(hass, entry, "host")
+        registry.async_remove.assert_not_called()
+        self.assertNotIn("server", stubs["server_test.const"].SENSORS)
