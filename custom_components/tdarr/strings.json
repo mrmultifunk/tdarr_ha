@@ -95,6 +95,39 @@
       },
       "totalHealthCheckCount": {
         "name": "Health checks"
+      },
+      "transcode_queue": {
+        "name": "Transcode queue"
+      },
+      "transcode_errors": {
+        "name": "Transcode errors"
+      },
+      "transcode_hold": {
+        "name": "Transcode on hold"
+      },
+      "transcode_success": {
+        "name": "Transcode successful files"
+      },
+      "transcode_not_required": {
+        "name": "Transcode not required"
+      },
+      "transcode_ignored": {
+        "name": "Transcode ignored"
+      },
+      "transcode_cancelled": {
+        "name": "Transcode cancelled"
+      },
+      "health_check_queue": {
+        "name": "Health check queue"
+      },
+      "health_check_errors": {
+        "name": "Health check errors"
+      },
+      "health_check_success": {
+        "name": "Health check healthy files"
+      },
+      "health_check_cancelled": {
+        "name": "Health check cancelled"
       }
     },
     "switch": {

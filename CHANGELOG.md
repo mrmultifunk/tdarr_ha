@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.22.0
+
+- Add per-library transcode and health-check queue/error sensors and transcode on-hold count.
+- Add optional per-library successful, not-required, ignored and cancelled file counts.
+- Reuse existing library statistics requests, preserve library identities and distinguish missing data from zero.
+
 ## 1.21.1
 
 - Fix server update entity registration: use Home Assistant's `UpdateEntityFeature` flag type for read-only updates. Plain integer zero fails the framework's feature membership checks.

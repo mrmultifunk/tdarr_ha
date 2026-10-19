@@ -1,4 +1,5 @@
 import logging
+import math
 
 from homeassistant.components.sensor import (
     SensorEntity,
@@ -210,6 +211,46 @@ LIBRARY_STATS = {
 }
 
 
+# Current file states from get-pies, distinct from lifetime operation counts.
+LIBRARY_STATUS = {
+    "transcode_queue": ("transcode", "queued", "Transcode queue", True),
+    "transcode_errors": ("transcode", "error", "Transcode errors", True),
+    "transcode_hold": ("transcode", "hold", "Transcode on hold", True),
+    "transcode_success": ("transcode", "success", "Transcode successful files", False),
+    "transcode_not_required": ("transcode", "not required", "Transcode not required", False),
+    "transcode_ignored": ("transcode", "ignored", "Transcode ignored", False),
+    "transcode_cancelled": ("transcode", "cancelled", "Transcode cancelled", False),
+    "health_check_queue": ("healthCheck", "queued", "Health check queue", True),
+    "health_check_errors": ("healthCheck", "error", "Health check errors", True),
+    "health_check_success": ("healthCheck", "success", "Health check healthy files", False),
+    "health_check_cancelled": ("healthCheck", "cancelled", "Health check cancelled", False),
+}
+LIBRARY_STATS.update({key: (label, "files", "mdi:file-multiple", None)
+                      for key, (_, _, label, _) in LIBRARY_STATUS.items()})
+
+
+def library_status_count(library, kind, status):
+    """Missing/invalid breakdowns are unknown; omitted slices in valid lists are zero."""
+    breakdown = library.get("status")
+    rows = breakdown.get(kind) if isinstance(breakdown, dict) else None
+    if not isinstance(rows, list):
+        return None
+    total = 0
+    for row in rows:
+        if not isinstance(row, dict) or not isinstance(row.get("name"), str):
+            return None
+        value = row.get("value")
+        if (isinstance(value, bool) or not isinstance(value, (int, float))
+                or not math.isfinite(value) or value < 0):
+            return None
+        name = row["name"].strip().lower()
+        if kind == "transcode":
+            name = name.removeprefix("transcode").strip()
+        if name == status:
+            total += value
+    return total
+
+
 class LibraryStatistic(TdarrEntity, SensorEntity):
     """Expose existing library statistics as recorder-friendly numeric sensors."""
 
@@ -220,6 +261,8 @@ class LibraryStatistic(TdarrEntity, SensorEntity):
         self._library_name = library["name"]
         self._key = key
         self._attr_translation_key = key
+        if key in LIBRARY_STATUS:
+            self._attr_entity_registry_enabled_default = LIBRARY_STATUS[key][3]
         self._attr_suggested_display_precision = 2 if key == "sizeDiff" else 0
         label, unit, icon, device_class = LIBRARY_STATS[key]
         self._label = label
@@ -249,6 +292,9 @@ class LibraryStatistic(TdarrEntity, SensorEntity):
     @property
     def native_value(self):
         library = self.library or {}
+        if self._key in LIBRARY_STATUS:
+            kind, status, _, _ = LIBRARY_STATUS[self._key]
+            return library_status_count(library, kind, status)
         value = library.get(self._key)
         if not isinstance(value, (int, float)) or isinstance(value, bool):
             return None

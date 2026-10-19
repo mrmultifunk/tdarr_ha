@@ -10,7 +10,7 @@ Maintained by [mrmultifunk](https://github.com/mrmultifunk), based on the origin
 | --- | --- |
 | Server | Connection, server update availability, global pause, ignore schedules, queue/error counts, total speed and aggregate statistics |
 | Each node | Pause processing, processing active, status and speed |
-| Each library | Scan for new files, processing enabled, files, space saved, transcodes and health checks |
+| Each library | Scan for new files, processing enabled, files, space saved, transcodes, health checks and per-library queues/status counts |
 
 Devices link to the Tdarr web interface. New nodes and libraries are discovered automatically.
 
@@ -47,6 +47,14 @@ Change options through **Settings → Devices & services → Tdarr → Configure
 **Processing enabled** controls the library's `processLibrary` setting. On allows processing; off disables it. This is not an immediate worker kill and does not alter plugins or flows.
 
 Library statistics expose file count, space saved in GB, transcodes and health checks. Savings can be negative, and counts can reset. Missing values appear as unknown. The Files sensor also includes codec, container and resolution details.
+
+### Library queues and file status
+
+Each library includes **Transcode queue**, **Transcode errors**, **Transcode on hold**, **Health check queue** and **Health check errors**. These count files in the respective Tdarr status for that library only, using the existing library statistics request.
+
+Additional sensors are disabled by default to keep the device overview concise: **Transcode successful files**, **Transcode not required**, **Transcode ignored**, **Transcode cancelled**, **Health check healthy files** and **Health check cancelled**. Enable them in **Settings → Devices & services → Entities** by selecting the library's disabled entities.
+
+Status counts describe the current file inventory; **Transcodes** and **Health checks** are accumulated operation counts and may differ. Queued and on-hold files are separate counts. An empty valid breakdown means zero; missing or invalid breakdown data means unknown. Server-wide totals remain on the server device.
 
 ### Nodes and global controls
 
