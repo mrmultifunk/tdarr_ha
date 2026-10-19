@@ -2,7 +2,7 @@
   "domain": "tdarr",
   "name": "Tdarr",
   "codeowners": [
-    "@itchannel"
+    "@mrmultifunk"
   ],
   "config_flow": true,
   "dependencies": [],
@@ -12,6 +12,6 @@
   "issue_tracker": "https://github.com/mrmultifunk/tdarr_ha/issues",
   "requirements": [],
   "ssdp": [],
-  "version": "1.20.1",
+  "version": "1.21.0",
   "zeroconf": []
 }

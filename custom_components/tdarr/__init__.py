@@ -29,10 +29,11 @@ from .const import (
 
 from .tdarr import Server
 from .polling import poll_data, PollError
+from .server_status import ServerStatusCoordinator
 
 CONFIG_SCHEMA = vol.Schema({DOMAIN: vol.Schema({})}, extra=vol.ALLOW_EXTRA)
 
-PLATFORMS = ["sensor", "switch", "button"]
+PLATFORMS = ["sensor", "switch", "button", "binary_sensor", "update"]
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -73,6 +74,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
         COORDINATOR : coordinator,
+        "server_status": ServerStatusCoordinator(hass, coordinator),
         "tdarr_options_listener": tdarr_options_listener
     }
         

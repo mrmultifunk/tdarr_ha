@@ -156,7 +156,15 @@ Use HACS and add as a custom repo. Once the integration is installed go to your 
 
 The integration will automatically add new nodes as they come online. Old nodes that are no longer used will need to be manually deleted from HA if no longer used.
 
-All sensors display any available additional info in the sensor attributes section. This information can be used by you to create more verbose sensors using Home Assistant templates. 
+All sensors display any available additional info in the sensor attributes section. This information can be used by you to create more verbose sensors using Home Assistant templates.
 
 
-This is a custom integration I have created to allow me to use HA to control my nodes such as pausing/unpausing transcoding depending on how much excess solar electricity I have. 
+This is a custom integration I have created to allow me to use HA to control my nodes such as pausing/unpausing transcoding depending on how much excess solar electricity I have.
+
+## Version 1.21.0
+
+- HACS displays **Tdarr — mrmultifunk**; fork maintenance is assigned to @mrmultifunk. Original author credit is retained.
+- **Server update** is read-only: checks the official Tdarr stable release manifest every six hours. Update your Docker Compose stack manually. HACS continues to handle integration updates. Development version strings are not compared to stable releases. Internet errors make only this update entity unavailable.
+- **Server connection** uses the connectivity device class. On means the status API responded successfully; off means it failed. A separate lightweight status request runs at the configured polling interval, so failures of library/statistics endpoints do not falsely report a disconnected server. Attributes include the last reported status, version, uptime (seconds), OS, last successful check, and a sanitized error. Details are retained from the last successful response while disconnected.
+- The existing **Server status** sensor and all existing entity IDs remain intact for compatibility. Its raw status normally reads `good`; it has no documented fixed enum. You may disable it after moving dashboards and automations to the new binary sensor.
+- Each node has **Processing active** (running device class), using workers' boolean `idle` flags, including work with zero FPS. No workers means off; unsupported/missing activity data means unknown. Missing nodes are unavailable. Node names remain the stable identity across restarts.

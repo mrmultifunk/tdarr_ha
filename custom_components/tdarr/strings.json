@@ -118,6 +118,19 @@
       "scan_new_files": {
         "name": "Scan for new files"
       }
+    },
+    "binary_sensor": {
+      "server_connection": {
+        "name": "Server connection"
+      },
+      "processing_active": {
+        "name": "Processing active"
+      }
+    },
+    "update": {
+      "server_update": {
+        "name": "Server update"
+      }
     }
   }
 }
